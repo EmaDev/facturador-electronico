@@ -9,9 +9,14 @@ import type { Customer } from '@/lib/types';
 
 // Mock data fetching
 const initialCustomers: Customer[] = [
-  { id: '1', name: 'Acme Inc.', email: 'contact@acme.com', address: '123 Acme St, Business City, 12345', taxId: 'ACME12345' },
-  { id: '2', name: 'Stark Industries', email: 'tony@stark.com', address: '10880 Malibu Point, 90265', taxId: 'STARKIND54321' },
-  { id: '3', name: 'Wayne Enterprises', email: 'bruce@wayne.com', address: '1007 Mountain Drive, Gotham', taxId: 'WAYNEENT9876' },
+    { id: '1', name: 'Acme Inc.', email: 'contact@acme.com', address: '123 Acme St, Business City, 12345', taxId: 'ACME12345' },
+    { id: '2', name: 'Stark Industries', email: 'tony@stark.com', address: '10880 Malibu Point, 90265', taxId: 'STARKIND54321' },
+    { id: '3', name: 'Wayne Enterprises', email: 'bruce@wayne.com', address: '1007 Mountain Drive, Gotham', taxId: 'WAYNEENT9876' },
+    { id: '4', name: 'Cyberdyne Systems', email: 'info@cyberdyne.com', address: '18144 El Camino Real, Sunnyvale', taxId: 'CYBERDYNESYS' },
+    { id: '5', name: 'Ollivanders Wand Shop', email: 'sales@ollivanders.co.uk', address: 'Diagon Alley, London', taxId: 'OWS123' },
+    { id: '6', name: 'Gekko & Co', email: 'gordon@gekko.com', address: 'Wall Street, NYC', taxId: 'GEKKO99' },
+    { id: '7', name: 'Soylent Corp', email: 'hr@soylent.com', address: '123 Megacorp Plaza', taxId: 'SOYLENTGR' },
+    { id: '8', name: 'Globex Corporation', email: 'hank.scorpio@globex.com', address: 'Cypress Creek', taxId: 'GLOBEXCORP' },
 ];
 
 const getCustomerById = (id: string): Customer | undefined => {
