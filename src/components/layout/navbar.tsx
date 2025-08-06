@@ -10,14 +10,23 @@ export function Navbar() {
   const handleTabChange = (value: string) => {
     router.push(value);
   };
-
-  const currentTab = pathname === '/crm' ? '/crm' : '/';
+  
+  const getCurrentTab = () => {
+    if (pathname.startsWith('/crm')) {
+      return '/crm';
+    }
+    if (pathname.startsWith('/template-editor')) {
+      return '/template-editor';
+    }
+    return '/';
+  }
 
   return (
-    <Tabs value={currentTab} onValueChange={handleTabChange}>
+    <Tabs value={getCurrentTab()} onValueChange={handleTabChange}>
       <TabsList>
         <TabsTrigger value="/">Invoice</TabsTrigger>
         <TabsTrigger value="/crm">CRM</TabsTrigger>
+        <TabsTrigger value="/template-editor">Template Editor</TabsTrigger>
       </TabsList>
     </Tabs>
   );
