@@ -128,53 +128,59 @@ export function InvoiceForm() {
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div>
               <h3 className="text-lg font-semibold mb-2 text-primary">Customer Details</h3>
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <div className="relative">
-                    <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      placeholder="Search for a customer..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        if (!popoverOpen) setPopoverOpen(true);
-                        if (selectedCustomer) setSelectedCustomer(null);
-                      }}
-                      className="pl-10"
-                      autoComplete="off"
-                    />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
-                  <div className="max-h-60 overflow-y-auto">
-                    {filteredCustomers.length > 0 ? (
-                      filteredCustomers.map((customer) => (
-                        <div
-                          key={customer.id}
-                          onClick={() => handleSelectCustomer(customer)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSelectCustomer(customer)}
-                          className="p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none"
-                          tabIndex={0}
-                        >
-                          {customer.name}
-                        </div>
-                      ))
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setPopoverOpen(false);
-                          setCreateCustomerOpen(true);
-                          customerForm.setValue('name', searchTerm);
+              <div className="flex gap-2">
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="relative flex-grow">
+                      <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search for a customer..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          if (!popoverOpen) setPopoverOpen(true);
+                          if (selectedCustomer) setSelectedCustomer(null);
                         }}
-                        className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
-                      >
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Create new customer "{searchTerm}"
-                      </button>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                        className="pl-10"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
+                    <div className="max-h-60 overflow-y-auto">
+                      {filteredCustomers.length > 0 ? (
+                        filteredCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            onClick={() => handleSelectCustomer(customer)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSelectCustomer(customer)}
+                            className="p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none"
+                            tabIndex={0}
+                          >
+                            {customer.name}
+                          </div>
+                        ))
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setCreateCustomerOpen(true);
+                            customerForm.setValue('name', searchTerm);
+                          }}
+                          className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Create new customer "{searchTerm}"
+                        </button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button variant="outline" onClick={() => setCreateCustomerOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  New
+                </Button>
+              </div>
             </div>
             {selectedCustomer && (
               <div className="bg-secondary p-4 rounded-lg text-sm transition-all duration-300 ease-in-out">
