@@ -10,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { UserSearch, PlusCircle, Trash2, Printer, Send } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { UserSearch, PlusCircle, Trash2, Printer, Send, UserPlus } from 'lucide-react';
 import type { Customer, InvoiceItem } from '@/lib/types';
 import { InvoicePreview } from './invoice-preview';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-const mockCustomers: Customer[] = [
+const initialCustomers: Customer[] = [
   { id: '1', name: 'Acme Inc.', email: 'contact@acme.com', address: '123 Acme St, Business City, 12345', taxId: 'ACME12345' },
   { id: '2', name: 'Stark Industries', email: 'tony@stark.com', address: '10880 Malibu Point, 90265', taxId: 'STARKIND54321' },
   { id: '3', name: 'Wayne Enterprises', email: 'bruce@wayne.com', address: '1007 Mountain Drive, Gotham', taxId: 'WAYNEENT9876' },
@@ -28,24 +30,44 @@ const itemSchema = z.object({
   discount: z.coerce.number().min(0, 'Discount cannot be negative').max(100, 'Discount cannot exceed 100%').optional().default(0),
 });
 
+const customerSchema = z.object({
+  name: z.string().min(2, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  address: z.string().min(5, 'Address is required'),
+  taxId: z.string().min(1, 'Tax ID is required'),
+});
+
 type ItemFormData = z.infer<typeof itemSchema>;
+type CustomerFormData = z.infer<typeof customerSchema>;
 
 export function InvoiceForm() {
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ItemFormData>({
+  const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
+  });
+
+  const customerForm = useForm<CustomerFormData>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      address: '',
+      taxId: '',
+    },
   });
 
   const filteredCustomers = useMemo(() =>
     searchTerm
-      ? mockCustomers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      : mockCustomers,
-    [searchTerm]
+      ? customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      : customers,
+    [searchTerm, customers]
   );
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -61,7 +83,7 @@ export function InvoiceForm() {
       discount: data.discount || 0,
     };
     setInvoiceItems([...invoiceItems, newItem]);
-    reset();
+    itemForm.reset();
   };
 
   const handleRemoveItem = (id: string) => {
@@ -72,6 +94,17 @@ export function InvoiceForm() {
     setInvoiceItems(invoiceItems.map(item =>
       item.id === id ? { ...item, [field]: value } : item
     ));
+  };
+
+  const handleCreateCustomer: SubmitHandler<CustomerFormData> = (data) => {
+    const newCustomer: Customer = {
+      id: crypto.randomUUID(),
+      ...data,
+    };
+    setCustomers([...customers, newCustomer]);
+    handleSelectCustomer(newCustomer);
+    setCreateCustomerOpen(false);
+    customerForm.reset();
   };
 
   const totals = useMemo(() => {
@@ -105,6 +138,7 @@ export function InvoiceForm() {
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
                         if (!popoverOpen) setPopoverOpen(true);
+                        if (selectedCustomer) setSelectedCustomer(null);
                       }}
                       className="pl-10"
                       autoComplete="off"
@@ -126,7 +160,17 @@ export function InvoiceForm() {
                         </div>
                       ))
                     ) : (
-                      <p className="p-2 text-sm text-muted-foreground">No customer found.</p>
+                      <button
+                        onClick={() => {
+                          setPopoverOpen(false);
+                          setCreateCustomerOpen(true);
+                          customerForm.setValue('name', searchTerm);
+                        }}
+                        className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Create new customer "{searchTerm}"
+                      </button>
                     )}
                   </div>
                 </PopoverContent>
@@ -145,12 +189,12 @@ export function InvoiceForm() {
 
           <div>
             <h3 className="text-lg font-semibold mb-4 text-primary">Invoice Items</h3>
-            <form onSubmit={handleSubmit(handleAddItem)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start mb-4">
-              <Input {...register('name')} placeholder="Item Name" className="md:col-span-4" />
-              <Input {...register('code')} placeholder="Code" className="md:col-span-2" />
-              <Input {...register('quantity')} type="number" placeholder="Qty" className="md:col-span-1" />
-              <Input {...register('price')} type="number" step="0.01" placeholder="Price" className="md:col-span-2" />
-              <Input {...register('discount')} type="number" placeholder="Discount %" className="md:col-span-2" />
+            <form onSubmit={itemForm.handleSubmit(handleAddItem)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start mb-4">
+              <Input {...itemForm.register('name')} placeholder="Item Name" className="md:col-span-4" />
+              <Input {...itemForm.register('code')} placeholder="Code" className="md:col-span-2" />
+              <Input {...itemForm.register('quantity')} type="number" placeholder="Qty" className="md:col-span-1" />
+              <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Price" className="md:col-span-2" />
+              <Input {...itemForm.register('discount')} type="number" placeholder="Discount %" className="md:col-span-2" />
               <Button type="submit" size="icon" className="md:col-span-1 bg-accent hover:bg-accent/90">
                 <PlusCircle className="h-5 w-5" />
               </Button>
@@ -232,6 +276,75 @@ export function InvoiceForm() {
           </Button>
         </CardFooter>
       </Card>
+
+      <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Customer</DialogTitle>
+            <DialogDescription>Fill in the details to create a new customer.</DialogDescription>
+          </DialogHeader>
+          <Form {...customerForm}>
+            <form onSubmit={customerForm.handleSubmit(handleCreateCustomer)} className="space-y-4">
+              <FormField
+                control={customerForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Acme Inc." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={customerForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="contact@acme.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={customerForm.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Acme St, Business City" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={customerForm.control}
+                name="taxId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="ACME12345" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setCreateCustomerOpen(false)}>Cancel</Button>
+                <Button type="submit">Create Customer</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       
       {selectedCustomer && (
         <InvoicePreview 
