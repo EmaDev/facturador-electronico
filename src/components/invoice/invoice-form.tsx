@@ -67,6 +67,12 @@ export function InvoiceForm() {
   const handleRemoveItem = (id: string) => {
     setInvoiceItems(invoiceItems.filter(item => item.id !== id));
   };
+  
+  const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: any) => {
+    setInvoiceItems(invoiceItems.map(item =>
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
 
   const totals = useMemo(() => {
     const subtotal = invoiceItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -168,7 +174,15 @@ export function InvoiceForm() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.code}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleUpdateItem(item.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20 text-right ml-auto h-8"
+                          min="1"
+                        />
+                      </TableCell>
                       <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
                       <TableCell className="text-right">{item.discount}%</TableCell>
                       <TableCell className="text-right">{formatCurrency(item.price * item.quantity * (1 - item.discount / 100))}</TableCell>
