@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from "@/components/layout/navbar";
+import { Chatbot } from "@/components/chatbot/chatbot";
 
 export const metadata: Metadata = {
   title: "Invoice Flow",
@@ -53,6 +54,7 @@ export default function RootLayout({
           </header>
           <main>{children}</main>
         </div>
+        <Chatbot />
         <Toaster />
       </body>
     </html>
