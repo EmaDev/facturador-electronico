@@ -76,7 +76,7 @@ export default function TemplateEditorPage() {
     return (
         <div className="grid lg:grid-cols-5 gap-8 w-full max-w-7xl mx-auto">
             {/* Editor Card */}
-            <Card className="lg:col-span-2">
+            <Card className="lg:col-span-2 no-print">
                 <CardHeader>
                     <CardTitle>Editar Plantilla de Factura</CardTitle>
                     <CardDescription>Personalice los datos y el estilo de sus facturas.</CardDescription>
@@ -190,10 +190,9 @@ export default function TemplateEditorPage() {
                            <div className="border border-black p-2">
                                <div className="flex items-center gap-4">
                                    {logoPreview && <img src={logoPreview} alt="Company Logo" className="max-w-[80px] max-h-[80px] object-contain" data-ai-hint="logo"/>}
-                                   <h1 className="text-xl font-bold text-center flex-1">Empresa de Ejemplo</h1>
+                                   <h1 className="text-xl font-bold text-center flex-1">{companyName}</h1>
                                </div>
                                <div className="mt-2 text-center">
-                                   <p className="font-bold">{companyName}</p>
                                    <p>{companyAddress}</p>
                                    <p>{companyPhone}</p>
                                    <p className="font-bold">{vatCondition}</p>
@@ -209,7 +208,7 @@ export default function TemplateEditorPage() {
                                     </div>
                                     <div className="flex-1">
                                        <p className="text-2xl font-bold">FACTURA</p>
-                                       <p>0000-00000001</p>
+                                       <p>{mockInvoice.number}</p>
                                        <p className="font-bold mt-2">Fecha de Emisión: {mockInvoice.date}</p>
                                     </div>
                                 </div>
@@ -322,7 +321,3 @@ export default function TemplateEditorPage() {
         </div>
     );
 }
-
-    
-
-    
