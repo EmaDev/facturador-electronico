@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit/zod';
+import { z } from 'zod';
 
 const ChatMessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -14,9 +14,9 @@ const ChatMessageSchema = z.object({
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
-export const ChatbotInputSchema = z.array(ChatMessageSchema);
+const ChatbotInputSchema = z.array(ChatMessageSchema);
 
-export const ChatbotOutputSchema = z.string();
+const ChatbotOutputSchema = z.string();
 
 export async function askChatbot(history: z.infer<typeof ChatbotInputSchema>): Promise<z.infer<typeof ChatbotOutputSchema>> {
     return chatbotFlow(history);
