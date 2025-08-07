@@ -7,13 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Eye } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, Eye, QrCode } from 'lucide-react';
 
 export default function TemplateEditorPage() {
-    const [companyName, setCompanyName] = useState('Invoice Flow Inc.');
-    const [footerText, setFooterText] = useState('<p>Thank you for your business! Please make payment within 30 days.</p><p><b>Bank Details:</b><br/>Bank: Example Bank<br/>Account: 1234567890</p>');
-    const [logoPreview, setLogoPreview] = useState<string | null>('https://placehold.co/100x100.png');
-    const [rawHtmlMode, setRawHtmlMode] = useState(true);
+    // Vendedor States
+    const [companyName, setCompanyName] = useState('Empresa de Ejemplo S.R.L.');
+    const [companyAddress, setCompanyAddress] = useState('Avenida 44 Nro. 12345, (1900) La Plata - Buenos Aires');
+    const [companyPhone, setCompanyPhone] = useState('(0123) 15-456-7890');
+    const [vatCondition, setVatCondition] = useState('Responsable Inscripto');
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [footerText, setFooterText] = useState('<p>Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación.</p><p>Comprobante generado con fácil virtual.</p>');
+
+    const [rawHtmlMode, setRawHtmlMode] = useState(false);
 
     const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -28,33 +34,39 @@ export default function TemplateEditorPage() {
 
     const handleSaveChanges = () => {
         // In a real application, you would save these settings to a backend or localStorage.
-        console.log('Saving changes:', { companyName, footerText, logo: logoPreview });
-        // For demonstration, we'll just log it.
+        console.log('Saving changes:', { companyName, companyAddress, companyPhone, vatCondition, logo: logoPreview, footerText });
         alert('Changes saved successfully! (Check console for details)');
     };
 
     const mockInvoice = {
-        number: 'INV-2024-001',
-        date: new Date().toLocaleDateString(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toLocaleDateString(),
+        number: '0000-00000001',
+        date: '01/01/2025',
+        cuit: '20-12345678-3',
+        ingresosBrutos: '20-12345678-3',
+        inicioActividades: '01/01/2000',
         customer: {
-            name: 'John Doe',
-            address: '123 Main Street, Anytown, USA',
-            email: 'john.doe@example.com'
+            name: 'Empresa de Ejemplo 2',
+            domicilio: 'Dirección Empresa 2',
+            condIVA: 'Responsable Inscripto',
+            condVenta: 'Contado',
+            cuit: '20-98765432-3',
+            localidad: 'Ciudad Empresa 2',
+            provincia: 'Provincia Empresa 2',
+            telefono: 'Teléfono Empresa 2',
         },
         items: [
-            { description: 'Web Development Services', quantity: 10, price: 150.00 },
-            { description: 'UI/UX Design Mockups', quantity: 1, price: 1200.00 },
-            { description: 'Logo Design', quantity: 1, price: 500.00 },
+            { codigo: '1001', descripcion: 'Producto Test 1', cantidad: 1, pUnitario: 1500.00, alicIVA: '21%', importe: 1500.00 },
+            { codigo: '1002', descripcion: 'Producto Test 2', cantidad: 1, pUnitario: 3000.00, alicIVA: '21%', importe: 3000.00 },
+            { codigo: '1003', descripcion: 'Producto Test 3', cantidad: 1, pUnitario: 4500.00, alicIVA: '21%', importe: 4500.00 },
         ]
     };
 
-    const subtotal = mockInvoice.items.reduce((acc, item) => acc + item.quantity * item.price, 0);
-    const tax = subtotal * 0.1; // 10% tax for example
-    const total = subtotal + tax;
+    const importeNeto = mockInvoice.items.reduce((acc, item) => acc + item.importe, 0);
+    const iva21 = importeNeto * 0.21;
+    const total = importeNeto + iva21;
     
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
     };
 
     return (
@@ -62,34 +74,65 @@ export default function TemplateEditorPage() {
             {/* Editor Card */}
             <Card className="lg:col-span-1">
                 <CardHeader>
-                    <CardTitle>Edit Invoice Template</CardTitle>
-                    <CardDescription>Customize the look and feel of your invoices.</CardDescription>
+                    <CardTitle>Editar Plantilla de Factura</CardTitle>
+                    <CardDescription>Personalice los datos y el estilo de sus facturas.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="company-name">Company Name</Label>
+                        <Label htmlFor="company-name">Razón Social</Label>
                         <Input
                             id="company-name"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
-                            placeholder="Your Company Name"
+                            placeholder="Su Razón Social"
                         />
                     </div>
-
+                     <div className="space-y-2">
+                        <Label htmlFor="company-address">Domicilio Comercial</Label>
+                        <Input
+                            id="company-address"
+                            value={companyAddress}
+                            onChange={(e) => setCompanyAddress(e.target.value)}
+                            placeholder="Su Domicilio"
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="company-phone">Teléfono</Label>
+                        <Input
+                            id="company-phone"
+                            value={companyPhone}
+                            onChange={(e) => setCompanyPhone(e.target.value)}
+                            placeholder="Su Teléfono"
+                        />
+                    </div>
                     <div className="space-y-2">
-                        <Label htmlFor="logo-upload">Company Logo</Label>
+                        <Label htmlFor="vat-condition">Condición frente al IVA</Label>
+                        <Select value={vatCondition} onValueChange={setVatCondition}>
+                            <SelectTrigger id="vat-condition">
+                                <SelectValue placeholder="Seleccione Condición" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Responsable Inscripto">Responsable Inscripto</SelectItem>
+                                <SelectItem value="Monotributista">Monotributista</SelectItem>
+                                <SelectItem value="Exento">Exento</SelectItem>
+                                <SelectItem value="Consumidor Final">Consumidor Final</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="logo-upload">Logo de la Empresa</Label>
                         <div className="flex items-center gap-4">
                             <div className="w-24 h-24 border rounded-md flex items-center justify-center bg-muted">
                                {logoPreview ? (
                                     <img src={logoPreview} alt="Logo Preview" className="max-w-full max-h-full object-contain" data-ai-hint="logo" />
                                ) : (
-                                    <span className="text-xs text-muted-foreground">No Logo</span>
+                                    <span className="text-xs text-muted-foreground">Sin Logo</span>
                                )}
                             </div>
                             <Button asChild variant="outline">
                                 <label htmlFor="logo-upload" className="cursor-pointer">
                                     <Upload className="mr-2 h-4 w-4" />
-                                    Upload Logo
+                                    Subir Logo
                                     <Input id="logo-upload" type="file" className="sr-only" accept="image/*" onChange={handleLogoChange} />
                                 </label>
                             </Button>
@@ -98,10 +141,10 @@ export default function TemplateEditorPage() {
 
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                            <Label htmlFor="footer-text">Footer Content</Label>
+                            <Label htmlFor="footer-text">Contenido del Pie de Página (personalizable)</Label>
                             <Button variant="ghost" size="sm" onClick={() => setRawHtmlMode(!rawHtmlMode)}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                {rawHtmlMode ? 'Preview HTML' : 'Edit HTML'}
+                                {rawHtmlMode ? 'Vista Previa HTML' : 'Editar HTML'}
                             </Button>
                         </div>
                          {rawHtmlMode ? (
@@ -109,90 +152,129 @@ export default function TemplateEditorPage() {
                                 id="footer-text"
                                 value={footerText}
                                 onChange={(e) => setFooterText(e.target.value)}
-                                placeholder="e.g., <p>Thank you for your business!</p>"
+                                placeholder="e.g., <p>Gracias por su compra!</p>"
                                 rows={6}
                                 className="font-mono text-xs"
                             />
                         ) : (
                             <div
-                                className="p-4 border rounded-md min-h-[120px] bg-muted/50 text-sm"
+                                className="p-4 border rounded-md min-h-[120px] bg-muted/50 text-xs"
                                 dangerouslySetInnerHTML={{ __html: footerText }}
                             />
                         )}
-
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                    <Button onClick={handleSaveChanges}>Save Changes</Button>
+                    <Button onClick={handleSaveChanges}>Guardar Cambios</Button>
                 </CardFooter>
             </Card>
 
             {/* Preview Card */}
-            <div className="lg:col-span-1">
-                <h3 className="text-lg font-semibold mb-4 text-center">Invoice Preview</h3>
-                <Card className="shadow-lg w-full printable-area">
-                    <CardContent className="p-8">
+            <div className="lg:col-span-1 printable-area">
+                <h3 className="text-lg font-semibold mb-4 text-center no-print">Vista Previa de Factura</h3>
+                <Card className="shadow-lg w-full text-[10px] leading-tight">
+                    <CardContent className="p-4 font-sans">
                         {/* Header */}
-                        <div className="flex justify-between items-start mb-8">
-                            <div>
-                                <h1 className="text-3xl font-bold text-primary">{companyName}</h1>
-                                <p className="text-muted-foreground">123 Innovation Drive</p>
-                                <p className="text-muted-foreground">Tech City, CA 94043</p>
-                            </div>
-                            <div className="w-24 h-24 flex items-center justify-center">
-                                {logoPreview && <img src={logoPreview} alt="Company Logo" className="max-w-full max-h-full object-contain" data-ai-hint="logo"/>}
-                            </div>
+                        <div className="grid grid-cols-2 gap-4 mb-2">
+                           {/* Left Header */}
+                           <div className="border border-black p-2">
+                               <div className="flex items-center gap-4">
+                                   {logoPreview && <img src={logoPreview} alt="Company Logo" className="max-w-[80px] max-h-[80px] object-contain" data-ai-hint="logo"/>}
+                                   <h1 className="text-xl font-bold text-center flex-1">Empresa de Ejemplo</h1>
+                               </div>
+                               <div className="mt-2 text-center">
+                                   <p className="font-bold">{companyName}</p>
+                                   <p>{companyAddress}</p>
+                                   <p>{companyPhone}</p>
+                                   <p className="font-bold">{vatCondition}</p>
+                               </div>
+                           </div>
+                           {/* Right Header */}
+                           <div className="border border-black p-2 flex flex-col justify-between">
+                                <div className="flex items-start">
+                                    <div className="border-r border-black pr-2 mr-2 text-center">
+                                       <p className="text-4xl font-bold">A</p>
+                                       <p className="text-[8px] leading-none">CÓD. 01</p>
+                                       <p className="text-[8px] leading-none">ORIGINAL</p>
+                                    </div>
+                                    <div className="flex-1">
+                                       <p className="text-2xl font-bold">FACTURA</p>
+                                       <p>0000-00000001</p>
+                                       <p className="font-bold mt-2">Fecha de Emisión: {mockInvoice.date}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p><span className="font-bold">CUIT:</span> {mockInvoice.cuit}</p>
+                                    <p><span className="font-bold">Ingresos Brutos:</span> {mockInvoice.ingresosBrutos}</p>
+                                    <p><span className="font-bold">Inicio de Actividades:</span> {mockInvoice.inicioActividades}</p>
+                               </div>
+                           </div>
                         </div>
 
-                        {/* Invoice Info */}
-                        <div className="flex justify-between mb-8 text-sm">
-                            <div className="space-y-1">
-                                <p className="font-bold text-primary">Bill To:</p>
-                                <p>{mockInvoice.customer.name}</p>
-                                <p className="text-muted-foreground">{mockInvoice.customer.address}</p>
-                                <p className="text-muted-foreground">{mockInvoice.customer.email}</p>
-                            </div>
-                            <div className="text-right space-y-1">
-                                <p><span className="font-bold">Invoice #:</span> {mockInvoice.number}</p>
-                                <p><span className="font-bold">Date:</span> {mockInvoice.date}</p>
-                                <p><span className="font-bold">Due Date:</span> {mockInvoice.dueDate}</p>
+                        {/* Customer Info */}
+                        <div className="border border-black p-2 mb-2">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p><span className="font-bold">Razón Social:</span> {mockInvoice.customer.name}</p>
+                                    <p><span className="font-bold">Domicilio:</span> {mockInvoice.customer.domicilio}</p>
+                                    <p><span className="font-bold">Cond. IVA:</span> {mockInvoice.customer.condIVA}</p>
+                                    <p><span className="font-bold">Cond. Venta:</span> {mockInvoice.customer.condVenta}</p>
+                                </div>
+                                <div>
+                                    <p><span className="font-bold">CUIT:</span> {mockInvoice.customer.cuit}</p>
+                                    <p><span className="font-bold">Localidad:</span> {mockInvoice.customer.localidad}</p>
+                                    <p><span className="font-bold">Provincia:</span> {mockInvoice.customer.provincia}</p>
+                                    <p><span className="font-bold">Teléfono:</span> {mockInvoice.customer.telefono}</p>
+                                </div>
                             </div>
                         </div>
 
                         {/* Items Table */}
-                        <table className="w-full text-sm mb-8">
+                        <table className="w-full mb-2">
                             <thead>
-                                <tr className="border-b">
-                                    <th className="text-left py-2">Description</th>
-                                    <th className="text-right py-2">Quantity</th>
-                                    <th className="text-right py-2">Unit Price</th>
-                                    <th className="text-right py-2">Total</th>
+                                <tr className="border border-black bg-gray-100">
+                                    <th className="p-1 text-left border-r border-black">Código</th>
+                                    <th className="p-1 text-left border-r border-black">Descripción</th>
+                                    <th className="p-1 text-right border-r border-black">Cantidad</th>
+                                    <th className="p-1 text-right border-r border-black">P. Unitario</th>
+                                    <th className="p-1 text-right border-r border-black">Alic. IVA</th>
+                                    <th className="p-1 text-right">Importe</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {mockInvoice.items.map((item, index) => (
-                                    <tr key={index} className="border-b">
-                                        <td className="py-2">{item.description}</td>
-                                        <td className="text-right py-2">{item.quantity}</td>
-                                        <td className="text-right py-2">{formatCurrency(item.price)}</td>
-                                        <td className="text-right py-2">{formatCurrency(item.quantity * item.price)}</td>
+                                    <tr key={index} className="border-x border-black">
+                                        <td className="p-1 border-r border-black">{item.codigo}</td>
+                                        <td className="p-1 border-r border-black">{item.descripcion}</td>
+                                        <td className="p-1 text-right border-r border-black">{item.cantidad}</td>
+                                        <td className="p-1 text-right border-r border-black">{formatCurrency(item.pUnitario)}</td>
+                                        <td className="p-1 text-right border-r border-black">{item.alicIVA}</td>
+                                        <td className="p-1 text-right">{formatCurrency(item.importe)}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                         
                         {/* Totals */}
-                        <div className="flex justify-end mb-8">
-                            <div className="w-64 space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Subtotal:</span>
-                                    <span>{formatCurrency(subtotal)}</span>
+                        <div className="flex justify-end mb-2">
+                            <div className="w-64">
+                                <div className="flex justify-between border-b border-black p-1">
+                                    <span className="font-bold">Importe Neto Gravado:</span>
+                                    <span>{formatCurrency(importeNeto)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Tax (10%):</span>
-                                    <span>{formatCurrency(tax)}</span>
+                                <div className="flex justify-between border-b border-black p-1">
+                                    <span className="font-bold">IVA 21%:</span>
+                                    <span>{formatCurrency(iva21)}</span>
                                 </div>
-                                <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
+                                <div className="flex justify-between border-b border-black p-1">
+                                    <span className="font-bold">IVA 10,5%:</span>
+                                    <span>{formatCurrency(0)}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-black p-1">
+                                    <span className="font-bold">Importe Otros Tributos:</span>
+                                    <span>{formatCurrency(0)}</span>
+                                </div>
+                                <div className="flex justify-between font-bold p-1 bg-gray-100">
                                     <span>Total:</span>
                                     <span>{formatCurrency(total)}</span>
                                 </div>
@@ -200,10 +282,24 @@ export default function TemplateEditorPage() {
                         </div>
                         
                         {/* Footer */}
-                         <div className="text-xs text-muted-foreground pt-4 border-t" dangerouslySetInnerHTML={{ __html: footerText }} />
+                         <div className="grid grid-cols-2 items-end border border-black p-2">
+                            <div className="flex items-end gap-2">
+                                <img data-ai-hint="qr code" src="https://placehold.co/80x80.png" alt="QR Code" className="w-20 h-20" />
+                                <div className="text-center">
+                                    <p className="font-bold">Comprobante Autorizado</p>
+                                    <div className="text-[8px]" dangerouslySetInnerHTML={{ __html: footerText }} />
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-bold">CAE N°: <span className="font-normal">123456789012345</span></p>
+                                <p className="font-bold">Fecha de Vto. de CAE: <span className="font-normal">11/01/2025</span></p>
+                            </div>
+                         </div>
                     </CardContent>
                 </Card>
             </div>
         </div>
     );
 }
+
+    
