@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Eye, QrCode } from 'lucide-react';
+import { Upload, Eye, Printer } from 'lucide-react';
 
 export default function TemplateEditorPage() {
     // Vendedor States
@@ -37,6 +37,10 @@ export default function TemplateEditorPage() {
         console.log('Saving changes:', { companyName, companyAddress, companyPhone, vatCondition, logo: logoPreview, footerText });
         alert('Changes saved successfully! (Check console for details)');
     };
+    
+    const triggerPrint = () => {
+        window.print();
+    }
 
     const mockInvoice = {
         number: '0000-00000001',
@@ -70,9 +74,9 @@ export default function TemplateEditorPage() {
     };
 
     return (
-        <div className="grid lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-5 gap-8 w-full max-w-7xl mx-auto">
             {/* Editor Card */}
-            <Card className="lg:col-span-1">
+            <Card className="lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Editar Plantilla de Factura</CardTitle>
                     <CardDescription>Personalice los datos y el estilo de sus facturas.</CardDescription>
@@ -170,8 +174,14 @@ export default function TemplateEditorPage() {
             </Card>
 
             {/* Preview Card */}
-            <div className="lg:col-span-1 printable-area">
-                <h3 className="text-lg font-semibold mb-4 text-center no-print">Vista Previa de Factura</h3>
+            <div className="lg:col-span-3 printable-area">
+                <div className="flex justify-between items-center mb-4 no-print">
+                    <h3 className="text-lg font-semibold text-center">Vista Previa de Factura</h3>
+                    <Button variant="outline" size="sm" onClick={triggerPrint}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir
+                    </Button>
+                </div>
                 <Card className="shadow-lg w-full text-[10px] leading-tight">
                     <CardContent className="p-4 font-sans">
                         {/* Header */}
@@ -252,6 +262,17 @@ export default function TemplateEditorPage() {
                                         <td className="p-1 text-right">{formatCurrency(item.importe)}</td>
                                     </tr>
                                 ))}
+                                {/* Add empty rows to fill the space */}
+                                {Array.from({ length: Math.max(0, 10 - mockInvoice.items.length) }).map((_, index) => (
+                                     <tr key={`empty-${index}`} className="border-x border-black h-6">
+                                        <td className="border-r border-black"></td>
+                                        <td className="border-r border-black"></td>
+                                        <td className="border-r border-black"></td>
+                                        <td className="border-r border-black"></td>
+                                        <td className="border-r border-black"></td>
+                                        <td></td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                         
@@ -301,5 +322,7 @@ export default function TemplateEditorPage() {
         </div>
     );
 }
+
+    
 
     
