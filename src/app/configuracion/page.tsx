@@ -11,6 +11,7 @@ import { Info, Upload } from 'lucide-react';
 
 export default function ConfiguracionPage() {
     const [cuit, setCuit] = useState('');
+    const [pointOfSale, setPointOfSale] = useState('');
     const [certificateFile, setCertificateFile] = useState<File | null>(null);
     const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
 
@@ -30,7 +31,7 @@ export default function ConfiguracionPage() {
 
     const handleSaveChanges = () => {
         // In a real application, you would save these settings to a backend.
-        console.log('Saving configuration:', { cuit, certificate: certificateFile?.name, privateKey: privateKeyFile?.name });
+        console.log('Saving configuration:', { cuit, pointOfSale, certificate: certificateFile?.name, privateKey: privateKeyFile?.name });
         alert('Configuration saved successfully! (Check console for details)');
     };
 
@@ -48,6 +49,15 @@ export default function ConfiguracionPage() {
                         value={cuit}
                         onChange={(e) => setCuit(e.target.value)}
                         placeholder="Ingrese su CUIT"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="point-of-sale">Punto de Venta</Label>
+                    <Input
+                        id="point-of-sale"
+                        value={pointOfSale}
+                        onChange={(e) => setPointOfSale(e.target.value)}
+                        placeholder="e.g., 0001"
                     />
                 </div>
                 <div className="space-y-2">
