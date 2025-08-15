@@ -8,10 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Upload } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ConfiguracionPage() {
     const [cuit, setCuit] = useState('');
     const [pointOfSale, setPointOfSale] = useState('');
+    const [address, setAddress] = useState('');
+    const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
+    const [vatCondition, setVatCondition] = useState('');
     const [certificateFile, setCertificateFile] = useState<File | null>(null);
     const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
 
@@ -31,7 +36,7 @@ export default function ConfiguracionPage() {
 
     const handleSaveChanges = () => {
         // In a real application, you would save these settings to a backend.
-        console.log('Saving configuration:', { cuit, pointOfSale, certificate: certificateFile?.name, privateKey: privateKeyFile?.name });
+        console.log('Saving configuration:', { cuit, pointOfSale, address, phone, email, vatCondition, certificate: certificateFile?.name, privateKey: privateKeyFile?.name });
         alert('Configuration saved successfully! (Check console for details)');
     };
 
@@ -42,24 +47,74 @@ export default function ConfiguracionPage() {
                 <CardDescription>Configure los datos necesarios para la facturación electrónica.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="cuit">CUIT</Label>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="cuit">CUIT</Label>
+                        <Input
+                            id="cuit"
+                            value={cuit}
+                            onChange={(e) => setCuit(e.target.value)}
+                            placeholder="Ingrese su CUIT"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="point-of-sale">Punto de Venta</Label>
+                        <Input
+                            id="point-of-sale"
+                            value={pointOfSale}
+                            onChange={(e) => setPointOfSale(e.target.value)}
+                            placeholder="e.g., 0001"
+                        />
+                    </div>
+                </div>
+
+                 <div className="space-y-2">
+                    <Label htmlFor="address">Dirección</Label>
                     <Input
-                        id="cuit"
-                        value={cuit}
-                        onChange={(e) => setCuit(e.target.value)}
-                        placeholder="Ingrese su CUIT"
+                        id="address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="e.g., Av. Corrientes 1234"
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="point-of-sale">Punto de Venta</Label>
-                    <Input
-                        id="point-of-sale"
-                        value={pointOfSale}
-                        onChange={(e) => setPointOfSale(e.target.value)}
-                        placeholder="e.g., 0001"
-                    />
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">Teléfono</Label>
+                        <Input
+                            id="phone"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="e.g., 11-1234-5678"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="e.g., contacto@empresa.com"
+                        />
+                    </div>
                 </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="vat-condition">Condición frente al IVA</Label>
+                    <Select value={vatCondition} onValueChange={setVatCondition}>
+                        <SelectTrigger id="vat-condition">
+                            <SelectValue placeholder="Seleccione Condición" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Responsable Inscripto">Responsable Inscripto</SelectItem>
+                            <SelectItem value="Monotributista">Monotributista</SelectItem>
+                            <SelectItem value="Exento">Exento</SelectItem>
+                            <SelectItem value="Consumidor Final">Consumidor Final</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
                          <Label htmlFor="certificate-file">Certificado Digital (.crt)</Label>
