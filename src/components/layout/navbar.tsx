@@ -18,6 +18,9 @@ export function Navbar() {
     if (pathname.startsWith('/template-editor')) {
       return '/template-editor';
     }
+    if (pathname.startsWith('/configuracion')) {
+        return '/configuracion';
+    }
     return '/';
   }
 
@@ -27,6 +30,7 @@ export function Navbar() {
         <TabsTrigger value="/">Invoice</TabsTrigger>
         <TabsTrigger value="/crm">CRM</TabsTrigger>
         <TabsTrigger value="/template-editor">Template Editor</TabsTrigger>
+        <TabsTrigger value="/configuracion">Configuración</TabsTrigger>
       </TabsList>
     </Tabs>
   );
