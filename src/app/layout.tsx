@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,7 +7,7 @@ import { Chatbot } from "@/components/chatbot/chatbot";
 
 export const metadata: Metadata = {
   title: "Invoice Flow",
-  description: "Online invoicing with a mini CRM.",
+  description: "Facturación online con un mini CRM.",
 };
 
 export default function RootLayout({
@@ -15,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

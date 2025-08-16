@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -9,7 +10,7 @@ export interface Customer {
 export interface InvoiceItem {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   quantity: number;
   price: number;
   discount: number;

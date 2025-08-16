@@ -1,3 +1,4 @@
+
 // This is a placeholder for a dynamic page.
 // In a real application, you would fetch customer data based on the ID.
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,11 +30,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   if (!customer) {
     return (
       <div className="text-center">
-        <p className="text-xl text-muted-foreground">Customer not found.</p>
+        <p className="text-xl text-muted-foreground">Cliente no encontrado.</p>
         <Button asChild variant="link" className="mt-4">
           <Link href="/crm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to CRM
+            Volver al CRM
           </Link>
         </Button>
       </div>
@@ -46,10 +47,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         <div className="flex justify-between items-start">
             <div>
                 <CardTitle>{customer.name}</CardTitle>
-                <CardDescription>Customer Details and History</CardDescription>
+                <CardDescription>Detalles e Historial del Cliente</CardDescription>
             </div>
             <Button asChild variant="outline">
-                <Link href="/crm"><ArrowLeft className="mr-2 h-4 w-4" /> Back to List</Link>
+                <Link href="/crm"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la Lista</Link>
             </Button>
         </div>
       </CardHeader>
@@ -60,11 +61,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <p className="text-muted-foreground">{customer.email}</p>
             </div>
             <div className="space-y-1">
-                <p className="font-semibold">Address:</p>
+                <p className="font-semibold">Dirección:</p>
                 <p className="text-muted-foreground">{customer.address}</p>
             </div>
              <div className="space-y-1">
-                <p className="font-semibold">Tax ID:</p>
+                <p className="font-semibold">CUIT/CUIL:</p>
                 <p className="text-muted-foreground">{customer.taxId}</p>
             </div>
         </div>
@@ -72,9 +73,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         <Separator className="my-6" />
 
         <div>
-            <h3 className="text-lg font-semibold mb-4 text-primary">Purchase History</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Historial de Compras</h3>
             <div className="rounded-md border min-h-[200px] flex items-center justify-center">
-                <p className="text-muted-foreground">No purchase history available yet.</p>
+                <p className="text-muted-foreground">No hay historial de compras disponible.</p>
             </div>
         </div>
       </CardContent>

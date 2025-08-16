@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -28,7 +29,7 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentDate(new Date().toLocaleDateString());
+      setCurrentDate(new Date().toLocaleDateString('es-AR'));
     }
   }, [isOpen]);
 
@@ -37,7 +38,7 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
   };
 
   return (
@@ -45,16 +46,16 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
       <DialogContent className="sm:max-w-4xl p-0">
         <div className="printable-area max-h-[90vh] overflow-y-auto">
             <DialogHeader className="no-print p-6 pb-0">
-              <DialogTitle className="font-headline">Invoice Preview</DialogTitle>
-              <DialogDescription>This is a preview of the invoice to be generated.</DialogDescription>
+              <DialogTitle className="font-headline">Vista Previa de Factura</DialogTitle>
+              <DialogDescription>Esta es una vista previa de la factura a ser generada.</DialogDescription>
             </DialogHeader>
             
             <div className="text-sm p-6">
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <h2 className="text-2xl font-bold text-primary font-headline">INVOICE</h2>
-                        <p className="text-muted-foreground">Invoice #: INV-2024-001</p>
-                        <p className="text-muted-foreground">Date: {currentDate}</p>
+                        <h2 className="text-2xl font-bold text-primary font-headline">FACTURA</h2>
+                        <p className="text-muted-foreground">Factura #: INV-2024-001</p>
+                        <p className="text-muted-foreground">Fecha: {currentDate}</p>
                     </div>
                     <div className="text-right">
                         <h3 className="font-bold text-lg">Invoice Flow Inc.</h3>
@@ -65,12 +66,12 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                 </div>
 
                 <div className="mb-6">
-                    <h4 className="font-semibold text-primary mb-2">Bill To:</h4>
+                    <h4 className="font-semibold text-primary mb-2">Facturar a:</h4>
                     <div className="p-4 bg-secondary/50 rounded-md">
                         <p className="font-bold">{customer.name}</p>
                         <p className="text-muted-foreground">{customer.address}</p>
                         <p className="text-muted-foreground">{customer.email}</p>
-                        <p className="text-muted-foreground">Tax ID: {customer.taxId}</p>
+                        <p className="text-muted-foreground">CUIT/CUIL: {customer.taxId}</p>
                     </div>
                 </div>
 
@@ -80,8 +81,8 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                     <TableHeader>
                         <TableRow>
                             <TableHead>Item</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Price</TableHead>
+                            <TableHead className="text-right">Cantidad</TableHead>
+                            <TableHead className="text-right">Precio</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -90,7 +91,7 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                             <TableRow key={item.id}>
                                 <TableCell>
                                     <div className="font-medium">{item.name}</div>
-                                    {item.code && <div className="text-xs text-muted-foreground">Code: {item.code}</div>}
+                                    {item.code && <div className="text-xs text-muted-foreground">Código: {item.code}</div>}
                                 </TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
@@ -107,7 +108,7 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                             <span>{formatCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between py-2">
-                            <span className="text-muted-foreground">Discount</span>
+                            <span className="text-muted-foreground">Descuento</span>
                             <span className="text-destructive">-{formatCurrency(totals.totalDiscount)}</span>
                         </div>
                         <Separator />
@@ -119,17 +120,17 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                 </div>
 
                 <div className="mt-12 text-center text-xs text-muted-foreground">
-                    <p>Thank you for your business!</p>
-                    <p>Please make payment within 30 days.</p>
+                    <p>¡Gracias por su compra!</p>
+                    <p>Por favor, realice el pago dentro de los 30 días.</p>
                 </div>
             </div>
         </div>
 
         <DialogFooter className="no-print p-6 pt-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
           <Button onClick={triggerPrint}>
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            Imprimir
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -13,7 +13,7 @@ import { askChatbot, type ChatMessage } from '@/ai/flows/chatbot-flow';
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', content: "Hello! I'm your AI assistant. How can I help you with your invoices or customers today?" }
+    { role: 'model', content: "¡Hola! Soy tu asistente de IA. ¿Cómo puedo ayudarte con tus facturas o clientes hoy?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,8 +30,8 @@ export function Chatbot() {
       const response = await askChatbot([...messages, userMessage]);
       setMessages(prev => [...prev, { role: 'model', content: response }]);
     } catch (error) {
-      console.error('Chatbot error:', error);
-      setMessages(prev => [...prev, { role: 'model', content: 'Sorry, I encountered an error. Please try again.' }]);
+      console.error('Error del chatbot:', error);
+      setMessages(prev => [...prev, { role: 'model', content: 'Lo siento, encontré un error. Por favor, inténtalo de nuevo.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +57,7 @@ export function Chatbot() {
             <Card className="flex flex-col h-[60vh] shadow-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Bot /> AI Assistant
+                  <Bot /> Asistente de IA
                 </CardTitle>
                 <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                   <X className="h-4 w-4" />
@@ -90,7 +90,7 @@ export function Chatbot() {
                 <div className="flex w-full items-center space-x-2">
                   <Input
                     type="text"
-                    placeholder="Ask about customers, invoices..."
+                    placeholder="Pregunta sobre clientes, facturas..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}

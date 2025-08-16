@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
@@ -27,9 +28,9 @@ export function Navbar() {
   return (
     <Tabs value={getCurrentTab()} onValueChange={handleTabChange}>
       <TabsList>
-        <TabsTrigger value="/">Invoice</TabsTrigger>
+        <TabsTrigger value="/">Factura</TabsTrigger>
         <TabsTrigger value="/crm">CRM</TabsTrigger>
-        <TabsTrigger value="/template-editor">Template Editor</TabsTrigger>
+        <TabsTrigger value="/template-editor">Editar Plantilla</TabsTrigger>
         <TabsTrigger value="/configuracion">Configuración</TabsTrigger>
       </TabsList>
     </Tabs>

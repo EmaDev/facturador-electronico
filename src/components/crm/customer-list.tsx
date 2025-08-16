@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -26,10 +27,10 @@ const initialCustomers: Customer[] = [
 ];
 
 const customerSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  address: z.string().min(5, 'Address is required'),
-  taxId: z.string().min(1, 'Tax ID is required'),
+  name: z.string().min(2, 'El nombre es requerido'),
+  email: z.string().email('Dirección de email inválida'),
+  address: z.string().min(5, 'La dirección es requerida'),
+  taxId: z.string().min(1, 'El CUIT/CUIL es requerido'),
 });
 
 type CustomerFormData = z.infer<typeof customerSchema>;
@@ -92,18 +93,18 @@ export function CustomerList() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Customer Relationship Management</CardTitle>
+          <CardTitle>Gestión de Clientes (CRM)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Tax ID</TableHead>
-                  <TableHead className="w-[140px]">Actions</TableHead>
+                  <TableHead>Dirección</TableHead>
+                  <TableHead>CUIT/CUIL</TableHead>
+                  <TableHead className="w-[140px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,7 +133,7 @@ export function CustomerList() {
                 )) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                      No customers found.
+                      No se encontraron clientes.
                     </TableCell>
                   </TableRow>
                 )}
@@ -143,7 +144,7 @@ export function CustomerList() {
         <CardFooter>
             <div className="flex items-center justify-end w-full space-x-2">
                 <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
+                    Página {currentPage} de {totalPages}
                 </span>
                 <Button
                     variant="outline"
@@ -151,7 +152,7 @@ export function CustomerList() {
                     onClick={handlePreviousPage}
                     disabled={currentPage === 1}
                 >
-                    Previous
+                    Anterior
                 </Button>
                 <Button
                     variant="outline"
@@ -159,7 +160,7 @@ export function CustomerList() {
                     onClick={handleNextPage}
                     disabled={currentPage === totalPages}
                 >
-                    Next
+                    Siguiente
                 </Button>
             </div>
         </CardFooter>
@@ -168,8 +169,8 @@ export function CustomerList() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
-            <DialogDescription>Update the details for this customer.</DialogDescription>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>Actualice los detalles de este cliente.</DialogDescription>
           </DialogHeader>
           <Form {...customerForm}>
             <form onSubmit={customerForm.handleSubmit(handleUpdateCustomer)} className="space-y-4">
@@ -178,7 +179,7 @@ export function CustomerList() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>Nombre</FormLabel>
                     <FormControl>
                       <Input placeholder="Acme Inc." {...field} />
                     </FormControl>
@@ -204,7 +205,7 @@ export function CustomerList() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>Dirección</FormLabel>
                     <FormControl>
                       <Input placeholder="123 Acme St, Business City" {...field} />
                     </FormControl>
@@ -217,7 +218,7 @@ export function CustomerList() {
                 name="taxId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax ID</FormLabel>
+                    <FormLabel>CUIT/CUIL</FormLabel>
                     <FormControl>
                       <Input placeholder="ACME12345" {...field} />
                     </FormControl>
@@ -226,8 +227,8 @@ export function CustomerList() {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit">Guardar Cambios</Button>
               </DialogFooter>
             </form>
           </Form>

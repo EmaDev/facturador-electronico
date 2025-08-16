@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -23,18 +24,18 @@ const initialCustomers: Customer[] = [
 ];
 
 const itemSchema = z.object({
-  name: z.string().min(1, 'Item name is required'),
+  name: z.string().min(1, 'El nombre del item es requerido'),
   code: z.string().optional(),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  price: z.coerce.number().min(0, 'Price cannot be negative'),
-  discount: z.coerce.number().min(0, 'Discount cannot be negative').max(100, 'Discount cannot exceed 100%').optional().default(0),
+  quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
+  price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
+  discount: z.coerce.number().min(0, 'El descuento no puede ser negativo').max(100, 'El descuento no puede ser mayor a 100%').optional().default(0),
 });
 
 const customerSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  address: z.string().min(5, 'Address is required'),
-  taxId: z.string().min(1, 'Tax ID is required'),
+  name: z.string().min(2, 'El nombre es requerido'),
+  email: z.string().email('Dirección de email inválida'),
+  address: z.string().min(5, 'La dirección es requerida'),
+  taxId: z.string().min(1, 'El CUIT/CUIL es requerido'),
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
@@ -115,26 +116,26 @@ export function InvoiceForm() {
   }, [invoiceItems]);
   
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
   };
 
   return (
     <>
       <Card className="w-full max-w-5xl mx-auto shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Create Invoice</CardTitle>
+          <CardTitle className="font-headline text-2xl">Crear Factura</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div>
-              <h3 className="text-lg font-semibold mb-2 text-primary">Customer Details</h3>
+              <h3 className="text-lg font-semibold mb-2 text-primary">Detalles del Cliente</h3>
               <div className="flex gap-2">
                 <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                   <PopoverTrigger asChild>
                     <div className="relative flex-grow">
                       <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
-                        placeholder="Search for a customer..."
+                        placeholder="Buscar un cliente..."
                         value={searchTerm}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
@@ -170,7 +171,7 @@ export function InvoiceForm() {
                           className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
                         >
                           <UserPlus className="mr-2 h-4 w-4" />
-                          Create new customer "{searchTerm}"
+                          Crear nuevo cliente "{searchTerm}"
                         </button>
                       )}
                     </div>
@@ -178,7 +179,7 @@ export function InvoiceForm() {
                 </Popover>
                 <Button variant="outline" onClick={() => setCreateCustomerOpen(true)}>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  New
+                  Nuevo
                 </Button>
               </div>
             </div>
@@ -187,20 +188,20 @@ export function InvoiceForm() {
                 <p className="font-bold">{selectedCustomer.name}</p>
                 <p className="text-muted-foreground">{selectedCustomer.email}</p>
                 <p className="text-muted-foreground">{selectedCustomer.address}</p>
-                <p className="text-muted-foreground">Tax ID: {selectedCustomer.taxId}</p>
+                <p className="text-muted-foreground">CUIT/CUIL: {selectedCustomer.taxId}</p>
               </div>
             )}
           </div>
           <Separator className="my-6" />
 
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-primary">Invoice Items</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Items de la Factura</h3>
             <form onSubmit={itemForm.handleSubmit(handleAddItem)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start mb-4">
-              <Input {...itemForm.register('name')} placeholder="Item Name" className="md:col-span-4" />
-              <Input {...itemForm.register('code')} placeholder="Code" className="md:col-span-2" />
-              <Input {...itemForm.register('quantity')} type="number" placeholder="Qty" className="md:col-span-1" />
-              <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Price" className="md:col-span-2" />
-              <Input {...itemForm.register('discount')} type="number" placeholder="Discount %" className="md:col-span-2" />
+              <Input {...itemForm.register('name')} placeholder="Nombre del Item" className="md:col-span-4" />
+              <Input {...itemForm.register('code')} placeholder="Código" className="md:col-span-2" />
+              <Input {...itemForm.register('quantity')} type="number" placeholder="Cant." className="md:col-span-1" />
+              <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Precio" className="md:col-span-2" />
+              <Input {...itemForm.register('discount')} type="number" placeholder="Dto. %" className="md:col-span-2" />
               <Button type="submit" size="icon" className="md:col-span-1 bg-accent hover:bg-accent/90">
                 <PlusCircle className="h-5 w-5" />
               </Button>
@@ -211,10 +212,10 @@ export function InvoiceForm() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Item</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Discount</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead className="text-right">Cant.</TableHead>
+                    <TableHead className="text-right">Precio</TableHead>
+                    <TableHead className="text-right">Dto.</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -244,7 +245,7 @@ export function InvoiceForm() {
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No items added yet.</TableCell>
+                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No hay items agregados.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -256,7 +257,7 @@ export function InvoiceForm() {
                     <TableCell></TableCell>
                   </TableRow>
                    <TableRow>
-                    <TableCell colSpan={5} className="text-right font-semibold">Discount</TableCell>
+                    <TableCell colSpan={5} className="text-right font-semibold">Descuento</TableCell>
                     <TableCell className="text-right font-semibold text-destructive">-{formatCurrency(totals.totalDiscount)}</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -274,7 +275,7 @@ export function InvoiceForm() {
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" disabled={!selectedCustomer || invoiceItems.length === 0} onClick={() => setPreviewOpen(true)}>
             <Printer className="mr-2 h-4 w-4" />
-            Preview & Print
+            Vista Previa e Imprimir
           </Button>
           <Button variant="default" disabled={!selectedCustomer || invoiceItems.length === 0} onClick={() => setPreviewOpen(true)}>
             Facturar
@@ -286,8 +287,8 @@ export function InvoiceForm() {
       <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Customer</DialogTitle>
-            <DialogDescription>Fill in the details to create a new customer.</DialogDescription>
+            <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+            <DialogDescription>Complete los detalles para crear un nuevo cliente.</DialogDescription>
           </DialogHeader>
           <Form {...customerForm}>
             <form onSubmit={customerForm.handleSubmit(handleCreateCustomer)} className="space-y-4">
@@ -296,7 +297,7 @@ export function InvoiceForm() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>Nombre</FormLabel>
                     <FormControl>
                       <Input placeholder="Acme Inc." {...field} />
                     </FormControl>
@@ -322,7 +323,7 @@ export function InvoiceForm() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>Dirección</FormLabel>
                     <FormControl>
                       <Input placeholder="123 Acme St, Business City" {...field} />
                     </FormControl>
@@ -335,7 +336,7 @@ export function InvoiceForm() {
                 name="taxId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax ID</FormLabel>
+                    <FormLabel>CUIT/CUIL</FormLabel>
                     <FormControl>
                       <Input placeholder="ACME12345" {...field} />
                     </FormControl>
@@ -344,8 +345,8 @@ export function InvoiceForm() {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateCustomerOpen(false)}>Cancel</Button>
-                <Button type="submit">Create Customer</Button>
+                <Button type="button" variant="outline" onClick={() => setCreateCustomerOpen(false)}>Cancelar</Button>
+                <Button type="submit">Crear Cliente</Button>
               </DialogFooter>
             </form>
           </Form>
