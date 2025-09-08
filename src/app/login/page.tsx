@@ -88,7 +88,7 @@ export default function LoginPage() {
             <line x1="10" x2="8" y1="9" y2="9" />
         </svg>
         <h1 className="text-4xl font-bold font-headline text-foreground">
-            Invoice Flow
+            AI Facturador Electronico
         </h1>
       </div>
       <Card className="w-full max-w-sm">

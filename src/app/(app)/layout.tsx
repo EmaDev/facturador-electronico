@@ -53,7 +53,7 @@ export default function AppLayout({
                     <line x1="10" x2="8" y1="9" y2="9" />
                 </svg>
                 <h1 className="text-3xl font-bold font-headline text-foreground">
-                    Invoice Flow
+                    AI Facturador Electronico
                 </h1>
             </div>
         </div>

@@ -58,10 +58,10 @@ export function InvoicePreview({ isOpen, onOpenChange, customer, items, totals }
                         <p className="text-muted-foreground">Fecha: {currentDate}</p>
                     </div>
                     <div className="text-right">
-                        <h3 className="font-bold text-lg">Invoice Flow Inc.</h3>
+                        <h3 className="font-bold text-lg">AI Facturador Electronico</h3>
                         <p className="text-muted-foreground">123 Innovation Drive</p>
                         <p className="text-muted-foreground">Tech City, CA 94043</p>
-                        <p className="text-muted-foreground">contact@invoiceflow.com</p>
+                        <p className="text-muted-foreground">contact@aifacturadorelectronico.com</p>
                     </div>
                 </div>
 

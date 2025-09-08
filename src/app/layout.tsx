@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "Invoice Flow",
+  title: "AI Facturador Electronico",
   description: "Facturación online con un mini CRM.",
 };
 
