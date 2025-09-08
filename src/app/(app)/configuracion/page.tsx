@@ -37,7 +37,7 @@ export default function ConfiguracionPage() {
     const handleSaveChanges = () => {
         // In a real application, you would save these settings to a backend.
         console.log('Saving configuration:', { cuit, pointOfSale, address, phone, email, vatCondition, certificate: certificateFile?.name, privateKey: privateKeyFile?.name });
-        alert('Configuration saved successfully! (Check console for details)');
+        alert('Configuración guardada con éxito! (Revisa la consola para más detalles)');
     };
 
     return (

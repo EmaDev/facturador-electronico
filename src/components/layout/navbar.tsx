@@ -3,6 +3,8 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -22,17 +24,28 @@ export function Navbar() {
     if (pathname.startsWith('/configuracion')) {
         return '/configuracion';
     }
-    return '/';
+    return '/factura';
   }
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('authToken');
+    router.push('/login');
+  };
+
   return (
-    <Tabs value={getCurrentTab()} onValueChange={handleTabChange}>
-      <TabsList>
-        <TabsTrigger value="/">Factura</TabsTrigger>
-        <TabsTrigger value="/crm">CRM</TabsTrigger>
-        <TabsTrigger value="/template-editor">Editar Plantilla</TabsTrigger>
-        <TabsTrigger value="/configuracion">Configuración</TabsTrigger>
-      </TabsList>
-    </Tabs>
+    <div className="flex justify-between items-center">
+        <Tabs value={getCurrentTab()} onValueChange={handleTabChange}>
+            <TabsList>
+                <TabsTrigger value="/factura">Factura</TabsTrigger>
+                <TabsTrigger value="/crm">CRM</TabsTrigger>
+                <TabsTrigger value="/template-editor">Editar Plantilla</TabsTrigger>
+                <TabsTrigger value="/configuracion">Configuración</TabsTrigger>
+            </TabsList>
+        </Tabs>
+        <Button variant="ghost" onClick={handleLogout}>
+            <LogOut className="mr-2"/>
+            Cerrar Sesión
+        </Button>
+    </div>
   );
 }

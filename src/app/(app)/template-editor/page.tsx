@@ -35,7 +35,7 @@ export default function TemplateEditorPage() {
     const handleSaveChanges = () => {
         // In a real application, you would save these settings to a backend or localStorage.
         console.log('Saving changes:', { companyName, companyAddress, companyPhone, vatCondition, logo: logoPreview, footerText });
-        alert('Changes saved successfully! (Check console for details)');
+        alert('Cambios guardados con éxito! (Revisa la consola para más detalles)');
     };
     
     const triggerPrint = () => {
