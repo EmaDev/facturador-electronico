@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -12,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Loader2, LogIn } from 'lucide-react';
+// import type { LoginResponse } from '@/types/auth'; // opcional
 
 const loginSchema = z.object({
   cuit: z.string().min(1, 'El CUIT es requerido'),
@@ -27,40 +27,46 @@ export default function LoginPage() {
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      cuit: '',
-      password: '',
-    },
+    defaultValues: { cuit: '', password: '' },
   });
 
   const handleLogin: SubmitHandler<LoginFormData> = async (data) => {
     setIsLoading(true);
     setError(null);
 
+    // Normalizá CUIT (sacá guiones/espacios)
+    const payload = {
+      ...data,
+      cuit: data.cuit.replace(/[^\d]/g, ''),
+    };
+
     try {
-      // Simulate API call to external backend
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
+      const json /* : LoginResponse */ = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error de autenticación');
+        throw new Error(json?.message || 'Error de autenticación');
       }
 
-      const { token } = await response.json();
+      // Guarda token de app
+      sessionStorage.setItem('authToken', json.token);
 
-      // Store token in sessionStorage
-      sessionStorage.setItem('authToken', token);
+      // Guarda credenciales WSAA
+      sessionStorage.setItem('wsaa_token', json.wsaa_token);
+      sessionStorage.setItem('wsaa_sign', json.wsaa_sign);
+      sessionStorage.setItem('wsaa_expires', json.expires);
+      sessionStorage.setItem('user_cuit', payload.cuit);
 
-      // Redirect to the main application
+      // Redirección
       router.push('/');
-      router.refresh(); // Ensure the layout re-renders with the new auth state
-
+      router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message ?? 'Error de autenticación');
     } finally {
       setIsLoading(false);
     }
@@ -69,28 +75,9 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="flex items-center gap-3 mb-8">
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-10 w-10 text-primary"
-        >
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" x2="8" y1="13" y2="13" />
-            <line x1="16" x2="8" y1="17" y2="17" />
-            <line x1="10" x2="8" y1="9" y2="9" />
-        </svg>
-        <h1 className="text-4xl font-bold font-headline text-foreground">
-            AI Facturador Electronico
-        </h1>
+        {/* … tu header … */}
       </div>
+
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Iniciar Sesión</CardTitle>
@@ -106,6 +93,7 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+
               <FormField
                 control={form.control}
                 name="cuit"
@@ -113,12 +101,18 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>CUIT</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ingrese su CUIT" {...field} />
+                      <Input
+                        placeholder="Ingrese su CUIT"
+                        inputMode="numeric"
+                        autoComplete="username"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
@@ -126,25 +120,25 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Contraseña</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Ingrese su contraseña" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="Ingrese su contraseña"
+                        autoComplete="current-password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <>
-                    <LogIn className="mr-2"/>
-                    Ingresar
-                  </>
-                )}
+                {isLoading ? <Loader2 className="animate-spin" /> : (<><LogIn className="mr-2" /> Ingresar</>)}
               </Button>
             </form>
           </Form>
         </CardContent>
+
         <CardFooter className="text-xs text-center text-muted-foreground justify-center">
           <p>Este es un sistema seguro. No comparta sus credenciales.</p>
         </CardFooter>
