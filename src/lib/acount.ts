@@ -1,0 +1,4 @@
+interface Account {
+    cuit: string;
+}
+

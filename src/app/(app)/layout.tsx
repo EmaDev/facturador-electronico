@@ -1,8 +1,5 @@
+"use client"
 
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Chatbot } from '@/components/chatbot/chatbot';
 
@@ -11,23 +8,6 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const token = sessionStorage.getItem('authToken');
-    if (!token) {
-      router.replace('/login');
-    }
-  }, [router]);
-
-  // This is a simple check. In a real app, you'd want to validate the token.
-   if (typeof window !== 'undefined' && !sessionStorage.getItem('authToken')) {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <p>Redirigiendo al login...</p>
-        </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -53,7 +33,7 @@ export default function AppLayout({
                     <line x1="10" x2="8" y1="9" y2="9" />
                 </svg>
                 <h1 className="text-3xl font-bold font-headline text-foreground">
-                    AI Facturador Electronico
+                    AI Facturador Online
                 </h1>
             </div>
         </div>

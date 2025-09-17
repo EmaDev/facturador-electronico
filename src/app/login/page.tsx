@@ -11,7 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Loader2, LogIn } from 'lucide-react';
-// import type { LoginResponse } from '@/types/auth'; // opcional
+import Link from 'next/link';
+import { useAccountStore } from "@/store/account";
+
 
 const loginSchema = z.object({
   cuit: z.string().min(1, 'El CUIT es requerido'),
@@ -53,15 +55,15 @@ export default function LoginPage() {
         throw new Error(json?.message || 'Error de autenticación');
       }
 
-      // Guarda token de app
-      sessionStorage.setItem('authToken', json.token);
+      useAccountStore.getState().setAuth({
+        token: json.token,
+        cuitEmisor: payload.cuit,
+        wsaa_token: json.wsaa_token,
+        wsaa_sign: json.wsaa_sign,
+        wsaa_expires: json.expires,
+      });
 
-      // Guarda credenciales WSAA
-      sessionStorage.setItem('wsaa_token', json.wsaa_token);
-      sessionStorage.setItem('wsaa_sign', json.wsaa_sign);
-      sessionStorage.setItem('wsaa_expires', json.expires);
-      sessionStorage.setItem('user_cuit', payload.cuit);
-
+      await useAccountStore.getState().fetchAccount(payload.cuit);
       // Redirección
       router.push('/');
       router.refresh();
@@ -139,8 +141,14 @@ export default function LoginPage() {
           </Form>
         </CardContent>
 
-        <CardFooter className="text-xs text-center text-muted-foreground justify-center">
+        <CardFooter className="flex-col gap-4 text-xs text-center text-muted-foreground justify-center">
           <p>Este es un sistema seguro. No comparta sus credenciales.</p>
+          <p>
+            ¿No tienes una cuenta?{' '}
+            <Button asChild variant="link" className="text-xs p-0 h-auto">
+              <Link href="/registro">Regístrate</Link>
+            </Button>
+          </p>
         </CardFooter>
       </Card>
     </main>

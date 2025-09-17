@@ -10,18 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { UserSearch, PlusCircle, Trash2, Printer, Send, UserPlus } from 'lucide-react';
+import { PlusCircle, Trash2, Send } from 'lucide-react';
 import type { Customer, InvoiceItem } from '@/lib/types';
-import { InvoicePreview } from './invoice-preview';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-
-const initialCustomers: Customer[] = [
-  { id: '1', name: 'Acme Inc.', email: 'contact@acme.com', address: '123 Acme St, Business City, 12345', taxId: 'ACME12345' },
-  { id: '2', name: 'Stark Industries', email: 'tony@stark.com', address: '10880 Malibu Point, 90265', taxId: 'STARKIND54321' },
-  { id: '3', name: 'Wayne Enterprises', email: 'bruce@wayne.com', address: '1007 Mountain Drive, Gotham', taxId: 'WAYNEENT9876' },
-];
+import { fecaesolicitar, feCompUltimoAutorizado } from '@/services/wsfe';
+import { generateInvoicePdf, downloadBlob } from "@/services/generateInvoicePdf";
+import { buildAfipQrURL, deepGet, mapCondIvaToId, normalizeAfipDate, pickFirstDet, resolveCbteTipo, todayAfip } from "@/lib/afip";
+import { useToast } from '@/hooks/use-toast';
+import CustomerPicker from './customer-picker';
+import { computePerItemTax } from "@/lib/tax";
+import { ActivePointAlert } from './active-point-alert';
+import { useAccountStore } from '@/store/account';
 
 const itemSchema = z.object({
   name: z.string().min(1, 'El nombre del item es requerido'),
@@ -31,51 +29,18 @@ const itemSchema = z.object({
   discount: z.coerce.number().min(0, 'El descuento no puede ser negativo').max(100, 'El descuento no puede ser mayor a 100%').optional().default(0),
 });
 
-const customerSchema = z.object({
-  name: z.string().min(2, 'El nombre es requerido'),
-  email: z.string().email('Dirección de email inválida'),
-  address: z.string().min(5, 'La dirección es requerida'),
-  taxId: z.string().min(1, 'El CUIT/CUIL es requerido'),
-});
 
 type ItemFormData = z.infer<typeof itemSchema>;
-type CustomerFormData = z.infer<typeof customerSchema>;
+
 
 export function InvoiceForm() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const { toast } = useToast();
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
   });
-
-  const customerForm = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      address: '',
-      taxId: '',
-    },
-  });
-
-  const filteredCustomers = useMemo(() =>
-    searchTerm
-      ? customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      : customers,
-    [searchTerm, customers]
-  );
-
-  const handleSelectCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setPopoverOpen(false);
-    setSearchTerm(customer.name);
-  };
 
   const handleAddItem: SubmitHandler<ItemFormData> = (data) => {
     const newItem: InvoiceItem = {
@@ -90,22 +55,11 @@ export function InvoiceForm() {
   const handleRemoveItem = (id: string) => {
     setInvoiceItems(invoiceItems.filter(item => item.id !== id));
   };
-  
+
   const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: any) => {
     setInvoiceItems(invoiceItems.map(item =>
       item.id === id ? { ...item, [field]: value } : item
     ));
-  };
-
-  const handleCreateCustomer: SubmitHandler<CustomerFormData> = (data) => {
-    const newCustomer: Customer = {
-      id: crypto.randomUUID(),
-      ...data,
-    };
-    setCustomers([...customers, newCustomer]);
-    handleSelectCustomer(newCustomer);
-    setCreateCustomerOpen(false);
-    customerForm.reset();
   };
 
   const totals = useMemo(() => {
@@ -114,9 +68,205 @@ export function InvoiceForm() {
     const total = subtotal - totalDiscount;
     return { subtotal, totalDiscount, total };
   }, [invoiceItems]);
-  
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
+  };
+
+  const resetInvoiceState = () => {
+    // limpia selección de cliente y búsqueda
+    setSelectedCustomer(null);
+
+    // limpia items
+    setInvoiceItems([]);
+
+    // limpia el mini-form de "agregar ítem"
+    itemForm.reset({
+      name: '',
+      code: '',
+      quantity: undefined as unknown as number,
+      price: undefined as unknown as number,
+      discount: undefined as unknown as number,
+    });
+
+  };
+
+  const handleInvoice = async () => {
+
+    const { auth, account, activePv } = useAccountStore.getState();
+
+    if (!auth?.wsaa_token || !auth?.wsaa_sign || !auth?.cuitEmisor) {
+      alert('No hay credenciales WSAA o CUIT emisor. Inicie sesión.');
+      return;
+    }
+
+    if (!activePv) {
+      alert('Seleccioná un Punto de Venta activo antes de facturar.');
+      return;
+    }
+
+    if (!selectedCustomer || invoiceItems.length === 0) return;
+
+    const PTO_VTA = 4;     // ajusta según tu emisor
+    // Para servicios usar Concepto 2/3; acá dejamos 1 (Productos)
+    const CONCEPTO = 1;
+    const MONEDA = "PES";
+
+
+    // 1) Credenciales WSAA
+    const wsaa_token = sessionStorage.getItem("wsaa_token") || "";
+    const wsaa_sign = sessionStorage.getItem("wsaa_sign") || "";
+    const cuitEmisor = sessionStorage.getItem("user_cuit") || "";
+
+    const emisorCond = account?.ivaCondition ?? 'Responsable Inscripto';
+    const receptorCond = selectedCustomer?.ivaCondition;
+    const cbteTipo = resolveCbteTipo(emisorCond, receptorCond);
+
+    const { lines, neto, iva, total, ivaItems, /*isFacturaA*/ } = computePerItemTax(invoiceItems, cbteTipo);
+
+    // 2) Doc receptor
+    const onlyDigits = (s: string) => (s || "").replace(/[^\d]/g, "");
+    const rcuit = onlyDigits(selectedCustomer.taxId);
+    const DocTipo = rcuit ? 80 : 99;
+    const DocNro = rcuit ? Number(rcuit) : 0;
+
+
+    // 3) Fecha
+    const { yyyymmdd, iso } = todayAfip();
+
+    // 4) último autorizado
+    let nextN = 0;
+    try {
+      const ul = await feCompUltimoAutorizado(activePv, cbteTipo, {
+        wsaa_token: auth.wsaa_token,
+        wsaa_sign: auth.wsaa_sign,
+        cuit: auth.cuitEmisor,
+      });
+      const ult = deepGet<number>(ul, [
+        "Envelope.Body.FECompUltimoAutorizadoResponse.FECompUltimoAutorizadoResult.CbteNro",
+        "CbteNro"
+      ]) ?? 0;
+      nextN = Number(ult) + 1;
+    } catch {
+      nextN = 0; // dejá que el backend asigne
+    }
+
+    // 5) Detalle Arca
+
+    const detalle = {
+      Concepto: CONCEPTO,
+      DocTipo,
+      DocNro,
+      CbteDesde: nextN || 0,
+      CbteHasta: nextN || 0,
+      CbteFch: yyyymmdd,
+      ImpTotal: total,
+      ImpTotConc: 0,
+      ImpNeto: neto,
+      ImpOpEx: 0,
+      ImpIVA: iva,
+      ImpTrib: 0,
+      CondicionIVAReceptorId: mapCondIvaToId(receptorCond),
+      MonId: MONEDA,
+      MonCotiz: 1,
+      Iva: ivaItems, // ← agrupado por tasa (AlicIva[])
+    };
+
+    // 6) Llamada al microservicio
+    const body = {
+      auth: { wsaa_token: auth.wsaa_token, wsaa_sign: auth.wsaa_sign, cuit: auth.cuitEmisor },
+      data: { PtoVta: activePv, CbteTipo: cbteTipo, detalle },
+    };
+
+    try {
+      const resp = await fecaesolicitar(body);
+      console.log(resp)
+
+      // 7) Extraer nro/CAE/CAE Vto de forma robusta
+      const nroCmp =
+        resp?.Envelope?.Body?.FECAESolicitarResponse?.FECAESolicitarResult?.FeCabResp?.CbteHasta ??
+        resp?.FeCabResp?.CbteHasta ??
+        resp?.CbteHasta ??
+        nextN;
+
+      // Tomar el primer detalle si viene array
+      const det = pickFirstDet(resp);
+
+      // CAE y Vto (pueden venir como number/string/objeto)
+      const cae: string = String(det?.CAE ?? "");
+      const caeVto: string = normalizeAfipDate(det?.CAEFchVto);
+
+      // Formatear número final
+      const numberStr = `${String(PTO_VTA).padStart(4, "0")}-${String(nroCmp).padStart(8, "0")}`;
+
+      // 8) QR ARCA
+      const qrUrl = buildAfipQrURL({
+        fecha: iso,
+        cuit: Number(cuitEmisor),
+        ptoVta: PTO_VTA,
+        tipoCmp: cbteTipo,
+        nroCmp,
+        importe: total,
+        moneda: MONEDA,
+        ctz: 1,
+        tipoDocRec: DocTipo,
+        nroDocRec: DocNro,
+      });
+
+      console.log(qrUrl)
+      // 9) Armar payload completo para el PDF
+      const seller = {
+        companyName: account?.razonSocial || '—',
+        companyAddress: account?.domicilio || '—',
+        companyPhone: account?.telefono || '—',
+        vatCondition: account?.ivaCondition || '—',
+        logoDataUrl: null, // si luego guardás un logo en la cuenta, úsalo acá
+      };
+
+      const pdfPayload = {
+        seller,
+        header: {
+          number: numberStr,
+          date: iso.split('-').reverse().join('/'),
+          cae,
+          caeVto,
+          qrUrl,
+          cuit: auth.cuitEmisor.replace(/^(\d{2})(\d{8})(\d{1})$/, '$1-$2-$3'),
+          ingresosBrutos: '—',//TODO: Solicitar
+          inicioActividades: (account?.inicioActividades ?? '').split('-').reverse().join('/') || '—',//TODO: Solicitar
+          cbteTipo,
+        },
+        customer: {
+          name: selectedCustomer.name,
+          domicilio: selectedCustomer.address,
+          condIVA: receptorCond ?? '—',
+          condVenta: 'Contado',
+          cuit: selectedCustomer.taxId,
+          localidad: '-',
+          provincia: '-',
+          telefono: selectedCustomer.email ?? '-',
+        },
+        items: lines, // ← usa lo calculado por-item
+        footerHtml: '<p></p>',
+      };
+
+      // 11) Generar y descargar PDF (IMPERATIVO)
+      const blob = await generateInvoicePdf(pdfPayload, {
+        currency: "ARS",
+        rowsPerFirstPage: 12,
+        rowsPerPage: 22,
+        showCustomerOnAllPages: false,
+      });
+      downloadBlob(blob, `Factura-${numberStr}.pdf`);
+      resetInvoiceState()
+      toast({
+        title: '¡Éxito!',
+        description: 'Factura creada correctamente.',
+      });
+    } catch (e: any) {
+      console.error("FECAESolicitar error:", e);
+      alert(`Error al facturar: ${String(e?.message ?? e)}`);
+    }
   };
 
   return (
@@ -124,86 +274,31 @@ export function InvoiceForm() {
       <Card className="w-full max-w-5xl mx-auto shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Crear Factura</CardTitle>
+          <ActivePointAlert />
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-primary">Detalles del Cliente</h3>
-              <div className="flex gap-2">
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <div className="relative flex-grow">
-                      <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar un cliente..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          if (!popoverOpen) setPopoverOpen(true);
-                          if (selectedCustomer) setSelectedCustomer(null);
-                        }}
-                        className="pl-10"
-                        autoComplete="off"
-                      />
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
-                    <div className="max-h-60 overflow-y-auto">
-                      {filteredCustomers.length > 0 ? (
-                        filteredCustomers.map((customer) => (
-                          <div
-                            key={customer.id}
-                            onClick={() => handleSelectCustomer(customer)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSelectCustomer(customer)}
-                            className="p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none"
-                            tabIndex={0}
-                          >
-                            {customer.name}
-                          </div>
-                        ))
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setCreateCustomerOpen(true);
-                            customerForm.setValue('name', searchTerm);
-                          }}
-                          className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Crear nuevo cliente "{searchTerm}"
-                        </button>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <Button variant="outline" onClick={() => setCreateCustomerOpen(true)}>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Nuevo
-                </Button>
-              </div>
-            </div>
-            {selectedCustomer && (
-              <div className="bg-secondary p-4 rounded-lg text-sm transition-all duration-300 ease-in-out">
-                <p className="font-bold">{selectedCustomer.name}</p>
-                <p className="text-muted-foreground">{selectedCustomer.email}</p>
-                <p className="text-muted-foreground">{selectedCustomer.address}</p>
-                <p className="text-muted-foreground">CUIT/CUIL: {selectedCustomer.taxId}</p>
-              </div>
-            )}
-          </div>
+
+          <CustomerPicker
+            value={selectedCustomer}
+            onChange={setSelectedCustomer}
+            autoLoad={true}              // trae de /api/customers
+            // initialCustomers={[...]}   // opcional si querés inyectar una lista inicial
+            className="mb-8"
+          />
+
           <Separator className="my-6" />
 
           <div>
             <h3 className="text-lg font-semibold mb-4 text-primary">Items de la Factura</h3>
-            <form onSubmit={itemForm.handleSubmit(handleAddItem)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start mb-4">
+            <form onSubmit={itemForm.handleSubmit(handleAddItem)}
+              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-start mb-4">
               <Input {...itemForm.register('name')} placeholder="Nombre del Item" className="md:col-span-4" />
               <Input {...itemForm.register('code')} placeholder="Código" className="md:col-span-2" />
-              <Input {...itemForm.register('quantity')} type="number" placeholder="Cant." className="md:col-span-1" />
+              <Input {...itemForm.register('quantity')} min={1} type="number" placeholder="Cant." className="md:col-span-1" />
               <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Precio" className="md:col-span-2" />
               <Input {...itemForm.register('discount')} type="number" placeholder="Dto. %" className="md:col-span-2" />
-              <Button type="submit" size="icon" className="md:col-span-1 bg-accent hover:bg-accent/90">
-                <PlusCircle className="h-5 w-5" />
+              <Button type="submit" className="md:col-span-1 bg-accent hover:bg-accent/90 px-4">
+                Agregar<PlusCircle className="h-5 w-5" />
               </Button>
             </form>
 
@@ -250,118 +345,41 @@ export function InvoiceForm() {
                   )}
                 </TableBody>
                 {invoiceItems.length > 0 &&
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(totals.subtotal)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                   <TableRow>
-                    <TableCell colSpan={5} className="text-right font-semibold">Descuento</TableCell>
-                    <TableCell className="text-right font-semibold text-destructive">-{formatCurrency(totals.totalDiscount)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                  <TableRow className="text-lg font-bold bg-secondary/50">
-                    <TableCell colSpan={5} className="text-right">Total</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totals.total)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableFooter>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-right font-semibold">Subtotal</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(totals.subtotal)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-right font-semibold">Descuento</TableCell>
+                      <TableCell className="text-right font-semibold text-destructive">-{formatCurrency(totals.totalDiscount)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    <TableRow className="text-lg font-bold bg-secondary/50">
+                      <TableCell colSpan={5} className="text-right">Total</TableCell>
+                      <TableCell className="text-right">{formatCurrency(totals.total)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableFooter>
                 }
               </Table>
             </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" disabled={!selectedCustomer || invoiceItems.length === 0} onClick={() => setPreviewOpen(true)}>
-            <Printer className="mr-2 h-4 w-4" />
-            Vista Previa e Imprimir
-          </Button>
-          <Button variant="default" disabled={!selectedCustomer || invoiceItems.length === 0} onClick={() => setPreviewOpen(true)}>
+          <Button
+            variant="default"
+            disabled={!selectedCustomer || invoiceItems.length === 0}
+            onClick={handleInvoice}
+          >
             Facturar
             <Send className="ml-2 h-4 w-4" />
           </Button>
         </CardFooter>
       </Card>
-
-      <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Crear Nuevo Cliente</DialogTitle>
-            <DialogDescription>Complete los detalles para crear un nuevo cliente.</DialogDescription>
-          </DialogHeader>
-          <Form {...customerForm}>
-            <form onSubmit={customerForm.handleSubmit(handleCreateCustomer)} className="space-y-4">
-              <FormField
-                control={customerForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Acme Inc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={customerForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="contact@acme.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={customerForm.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dirección</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Acme St, Business City" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={customerForm.control}
-                name="taxId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CUIT/CUIL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ACME12345" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateCustomerOpen(false)}>Cancelar</Button>
-                <Button type="submit">Crear Cliente</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {selectedCustomer && (
-        <InvoicePreview 
-          isOpen={previewOpen} 
-          onOpenChange={setPreviewOpen} 
-          customer={selectedCustomer} 
-          items={invoiceItems} 
-          totals={totals}
-        />
-      )}
     </>
   );
 }
+
+

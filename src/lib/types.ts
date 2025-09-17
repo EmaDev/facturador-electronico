@@ -5,6 +5,8 @@ export interface Customer {
   email: string;
   address: string;
   taxId: string;
+  ivaCondition?: IvaCondition;
+  pointsOfSale: number
 }
 
 export interface InvoiceItem {
@@ -15,3 +17,9 @@ export interface InvoiceItem {
   price: number;
   discount: number;
 }
+
+export type IvaCondition =
+  | "Responsable Inscripto"
+  | "Monotributista"
+  | "Exento"
+  | "Consumidor Final";
