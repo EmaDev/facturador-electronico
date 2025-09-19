@@ -21,13 +21,16 @@ const registerSchema = z.object({
   vatCondition: z.enum(["Responsable Inscripto", "Monotributista", "Exento", "Consumidor Final"], {
     required_error: "La condición de IVA es requerida",
   }),
+  companyname: z.string().min(1, 'La razon social es requerida'),
+  iibb: z.string().min(1, 'El numero de ingresos brutos es requerido'),
+  startactivity: z.string().min(1, 'La fecha de inicio de actividad es requerida'),
   certificate: z.instanceof(File).optional(), // validamos presencia manualmente
   privateKey: z.instanceof(File).optional(),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-const API_BASE = 'http://localhost:3000';
+const NEST_API_URL = 'http://localhost:3000';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,6 +44,7 @@ export default function RegisterPage() {
     defaultValues: {
       cuit: '',
       password: '',
+      companyname: "",
       vatCondition: undefined as any,
     },
   });
@@ -63,17 +67,20 @@ export default function RegisterPage() {
       const fd = new FormData();
       fd.append('cuit', cuitNormalized);
       fd.append('password', data.password);
+      fd.append('companyname', data.companyname);
       fd.append('ivaCondition', data.vatCondition);
+      fd.append('startactivity', data.startactivity);
+      fd.append('iibb', data.iibb);
       fd.append('cert', certificateFile); // name: cert
       fd.append('key', privateKeyFile);   // name: key
 
-      const resp = await fetch(`${API_BASE}/accounts`, {
+      const resp = await fetch(`${NEST_API_URL}/accounts`, {
         method: 'POST',
         body: fd, // NO seteamos Content-Type manualmente
       });
 
       let json: any = null;
-      try { json = await resp.json(); } catch {}
+      try { json = await resp.json(); } catch { }
 
       if (!resp.ok) {
         const msg = json?.message || json?.error || resp.statusText || 'Error en el registro';
@@ -148,7 +155,59 @@ export default function RegisterPage() {
                   )}
                 />
               </div>
-
+              <FormField
+                control={form.control}
+                name="companyname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Razón social</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ingrese su razón social"
+                        inputMode="text"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="iibb"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ingresos Brutos</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ingrese numero de IIBB"
+                          inputMode="numeric"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="startactivity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inicio de Actividad</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="Ingrese fecha de inicio de actividad"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="vatCondition"

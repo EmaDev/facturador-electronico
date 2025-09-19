@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
+import QRCode from "qrcode";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import CustomerPicker from './customer-picker';
 import { computePerItemTax } from "@/lib/tax";
 import { ActivePointAlert } from './active-point-alert';
 import { useAccountStore } from '@/store/account';
+import { saveInvoice, SaveInvoicePayload } from '@/lib/invoices';
 
 const itemSchema = z.object({
   name: z.string().min(1, 'El nombre del item es requerido'),
@@ -107,15 +109,12 @@ export function InvoiceForm() {
 
     if (!selectedCustomer || invoiceItems.length === 0) return;
 
-    const PTO_VTA = 4;     // ajusta según tu emisor
     // Para servicios usar Concepto 2/3; acá dejamos 1 (Productos)
     const CONCEPTO = 1;
     const MONEDA = "PES";
 
 
     // 1) Credenciales WSAA
-    const wsaa_token = sessionStorage.getItem("wsaa_token") || "";
-    const wsaa_sign = sessionStorage.getItem("wsaa_sign") || "";
     const cuitEmisor = sessionStorage.getItem("user_cuit") || "";
 
     const emisorCond = account?.ivaCondition ?? 'Responsable Inscripto';
@@ -197,31 +196,86 @@ export function InvoiceForm() {
       const caeVto: string = normalizeAfipDate(det?.CAEFchVto);
 
       // Formatear número final
-      const numberStr = `${String(PTO_VTA).padStart(4, "0")}-${String(nroCmp).padStart(8, "0")}`;
+      const numberStr = `${String(activePv).padStart(4, "0")}-${String(nroCmp).padStart(8, "0")}`;
 
       // 8) QR ARCA
       const qrUrl = buildAfipQrURL({
-        fecha: iso,
+        fecha: iso,                 // "YYYY-MM-DD"
         cuit: Number(cuitEmisor),
-        ptoVta: PTO_VTA,
+        ptoVta: activePv,
         tipoCmp: cbteTipo,
         nroCmp,
         importe: total,
-        moneda: MONEDA,
+        moneda: MONEDA,             // "PES" => ctz=1
         ctz: 1,
-        tipoDocRec: DocTipo,
-        nroDocRec: DocNro,
+        tipoDocRec: DocTipo,        // 80 (CUIT) o 99 (CF)
+        nroDocRec: DocNro,          // 0 si DocTipo=99
+        tipoCodAut: "E",            // CAE
+        codAut: cae,                // "75381797088071" por ej.
       });
 
-      console.log(qrUrl)
-      // 9) Armar payload completo para el PDF
-      const seller = {
-        companyName: account?.razonSocial || '—',
-        companyAddress: account?.domicilio || '—',
-        companyPhone: account?.telefono || '—',
-        vatCondition: account?.ivaCondition || '—',
-        logoDataUrl: null, // si luego guardás un logo en la cuenta, úsalo acá
+      // 9) Guardar factura en base de datos
+      const cbtePtoVtaStr = String(activePv).padStart(4, "0");
+      const cbteNumeroStr = String(nroCmp).padStart(8, "0");
+      const isFacturaA = [1, 2, 3, 201, 203, 204].includes(cbteTipo); // ajustá si hace falta
+
+      const savePayload: SaveInvoicePayload = {
+        emitterCuit: auth.cuitEmisor,
+        ptoVta: activePv,
+        customerId: selectedCustomer.id,
+
+        cbteTipo,
+        cbteNumero: Number(nroCmp),
+        cbtePtoVtaStr,
+        cbteNumeroStr,
+        cae,
+        caeVto,
+        fechaEmisionIso: iso,
+        qrUrl,
+        numberStr,
+
+        impNeto: Number(neto.toFixed(2)),
+        impIva: Number(iva.toFixed(2)),
+        impTotal: Number(total.toFixed(2)),
+        impTotConc: 0,
+        impOpEx: 0,
+        impTrib: 0,
+        ivaItems,     // el mismo array que mandaste a AFIP
+
+        items: lines, // tus ítems calculados por computePerItemTax
+
+        customerName: selectedCustomer.name,
+        customerTaxId: selectedCustomer.taxId,
+        customerAddress: selectedCustomer.address,
+        customerEmail: selectedCustomer.email ?? "",
+        customerIvaCond: receptorCond ?? "",
+
+        isFacturaA,
       };
+
+      try {
+        await saveInvoice(savePayload);
+      } catch (e) {
+        // No detengas el flujo de facturación si falla el guardado,
+        // pero logueá/avisá para revisar.
+        console.warn("Historial: no se pudo guardar la factura:", e);
+      }
+      // 10) Armar payload completo para el PDF
+      const dataPtventa = account?.puntosVenta?.find(ptvta => ptvta.id === activePv);
+      const seller = {
+        companyName: account?.companyname || '-----',
+        fantasyName: dataPtventa?.fantasia || account?.companyname || '-----',
+        companyAddress: dataPtventa?.domicilio || account?.domicilio || '----',
+        companyPhone: account?.telefono || '',
+        vatCondition: account?.ivaCondition || '',
+        logoDataUrl: dataPtventa?.logoUrl || ""
+      };
+
+      const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+        errorCorrectionLevel: "M",
+        margin: 0,
+        scale: 6,          // nitidez en impresión
+      });
 
       const pdfPayload = {
         seller,
@@ -230,10 +284,10 @@ export function InvoiceForm() {
           date: iso.split('-').reverse().join('/'),
           cae,
           caeVto,
-          qrUrl,
+          qrUrl: qrDataUrl,
           cuit: auth.cuitEmisor.replace(/^(\d{2})(\d{8})(\d{1})$/, '$1-$2-$3'),
-          ingresosBrutos: '—',//TODO: Solicitar
-          inicioActividades: (account?.inicioActividades ?? '').split('-').reverse().join('/') || '—',//TODO: Solicitar
+          ingresosBrutos: account?.iibb || "---",
+          inicioActividades: account?.startactivity || "",//(account?.inicioActividades ?? '').split('-').reverse().join('/') || '—',
           cbteTipo,
         },
         customer: {
@@ -258,6 +312,7 @@ export function InvoiceForm() {
         showCustomerOnAllPages: false,
       });
       downloadBlob(blob, `Factura-${numberStr}.pdf`);
+
       resetInvoiceState()
       toast({
         title: '¡Éxito!',

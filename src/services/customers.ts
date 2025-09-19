@@ -14,11 +14,12 @@ export type CreateCustomerPayload = {
 
 const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL || "http://localhost:3000";
 
-// Trae clientes desde tu backend (Nest o Next proxy)
-export async function listCustomers(): Promise<Customer[]> {
-  const res = await fetch("/api/customers", { cache: "no-store" });
-  if (!res.ok) throw new Error("No se pudieron obtener clientes");
-  return res.json();
+export async function listCustomersByEmitter(emitterCuit: string): Promise<Customer[]> {
+  const url = `${NEST_API_URL}/customers?emitterCuit=${encodeURIComponent(emitterCuit)}`;
+  const r = await fetch(url, { cache: "no-store" });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok || !json?.ok) throw new Error(json?.message || "No se pudo obtener clientes");
+  return Array.isArray(json.customers) ? json.customers : [];
 }
 
 export async function createCustomer(payload: CreateCustomerPayload): Promise<Customer> {

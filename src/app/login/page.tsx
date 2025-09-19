@@ -55,7 +55,8 @@ export default function LoginPage() {
         throw new Error(json?.message || 'Error de autenticación');
       }
 
-      useAccountStore.getState().setAuth({
+      const store = useAccountStore.getState();
+      store.setAuth({
         token: json.token,
         cuitEmisor: payload.cuit,
         wsaa_token: json.wsaa_token,
@@ -63,10 +64,12 @@ export default function LoginPage() {
         wsaa_expires: json.expires,
       });
 
-      await useAccountStore.getState().fetchAccount(payload.cuit);
-      // Redirección
+      await store.fetchAccount(payload.cuit);
+      await store.fetchInvoiceTemplates(payload.cuit);
+
       router.push('/');
       router.refresh();
+      
     } catch (err: any) {
       setError(err.message ?? 'Error de autenticación');
     } finally {

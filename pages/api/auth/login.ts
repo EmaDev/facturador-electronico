@@ -9,6 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!cuit || !password) return res.status(400).json({ message: "CUIT y password requeridos" });
 
   // 🔐 Mock auth (reemplazá por tu lógica real)
+  //if (!(cuit === "20251154261" && password === "password123")) {
   if (!(cuit === "20251154261" && password === "password123")) {
     return res.status(401).json({ message: "CUIT o contraseña inválidos" });
   }

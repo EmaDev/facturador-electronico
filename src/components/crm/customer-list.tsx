@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,17 @@ import { Edit, Trash2, Eye, Search } from 'lucide-react';
 import type { Customer } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAccountStore } from '@/store/account';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from '@/hooks/use-toast';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'El nombre es requerido'),
@@ -26,8 +37,8 @@ const customerSchema = z.object({
 
 type CustomerFormData = z.infer<typeof customerSchema>;
 
-const ITEMS_PER_PAGE = 5;
-const API_BASE = process.env.NEXT_PUBLIC_NEST_URL ?? 'http://localhost:3000';
+const ITEMS_PER_PAGE = 10;
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? 'http://localhost:3000';
 
 export function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -36,6 +47,8 @@ export function CustomerList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchByCuit, setSearchByCuit] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
 
   // Traemos el CUIT del emisor desde el store (o podrías leer de sessionStorage si preferís)
   const auth = useAccountStore(s => s.auth);
@@ -47,7 +60,7 @@ export function CustomerList() {
 
     (async () => {
       try {
-        const r = await fetch(`${API_BASE}/customers?emitterCuit=${encodeURIComponent(cuit)}`);
+        const r = await fetch(`${NEST_API_URL}/customers?emitterCuit=${encodeURIComponent(cuit)}`);
         const json = await r.json();
         if (!r.ok) throw new Error(json?.message || 'No se pudo cargar clientes');
         // json = { ok: true, customers: [...] }
@@ -96,7 +109,7 @@ export function CustomerList() {
     if (!editingCustomer?.id) return;
 
     try {
-      const r = await fetch(`${API_BASE}/customers/${editingCustomer.id}`, {
+      const r = await fetch(`${NEST_API_URL}/customers/${editingCustomer.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,6 +134,41 @@ export function CustomerList() {
       // Podrías mostrar un toast aquí
     }
   };
+
+  const handleDeleteClick = (id: string) => {
+    setCustomerToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return;
+
+    try {
+      const res = await fetch(`${NEST_API_URL}/customers/${customerToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al eliminar el cliente");
+      }
+      setCustomers(customers.filter((c) => c.id !== customerToDelete));
+
+      toast({
+        title: "Éxito",
+        description: "Cliente eliminado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al eliminar el cliente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    }
+  };
+
 
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -186,7 +234,7 @@ export function CustomerList() {
                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(customer)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(customer.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -299,6 +347,22 @@ export function CustomerList() {
           </Form>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de eliminar este cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente al cliente de sus registros.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className={buttonVariants({ variant: "destructive" })}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

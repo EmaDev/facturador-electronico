@@ -9,6 +9,7 @@ export type PuntoVenta = {
   fantasia: string;
   domicilio?: string;
   telefono?: string;
+  logoUrl?:string;
 };
 
 export type Account = {
@@ -18,12 +19,15 @@ export type Account = {
   email?: string;
   domicilio?: string;
   telefono?: string;
+  companyname: string;
   inicioActividades?: string; // AAAA-MM-DD
   puntosVenta?: PuntoVenta[];
   // flags del backend (no guardes material sensible del cert)
   hasWsaa?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  iibb: string
+  startactivity: string
 };
 
 export type WsaaSession = {

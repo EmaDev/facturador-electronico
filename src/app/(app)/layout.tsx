@@ -40,7 +40,6 @@ export default function AppLayout({
         <Navbar />
       </header>
       <main>{children}</main>
-      <Chatbot />
     </div>
   );
 }

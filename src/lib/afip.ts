@@ -1,40 +1,46 @@
-export function toBase64BrowserSafe(s: string) {
-  // Evita problemas con unicode
-  return typeof window !== "undefined"
-    ? btoa(unescape(encodeURIComponent(s)))
-    : Buffer.from(s).toString("base64");
+function toBase64(json: string) {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(json, "utf8").toString("base64");
+  }
+  // Browser
+  return btoa(unescape(encodeURIComponent(json)));
 }
 
 export function buildAfipQrURL(params: {
   ver?: number;
-  fecha: string;     // ISO yyyy-mm-dd
+  fecha: string;      // "YYYY-MM-DD"
   cuit: number;
   ptoVta: number;
   tipoCmp: number;
   nroCmp: number;
-  importe: number;
-  moneda?: string;
-  ctz?: number;
-  tipoDocRec: number;
-  nroDocRec: number;
-  tipoCod?: "E";
+  importe: number;    // total del comprobante
+  moneda?: string;    // "PES"
+  ctz?: number;       // 1 si moneda="PES"
+  tipoDocRec: number; // 80 (CUIT) | 99 (CF)
+  nroDocRec: number;  // 0 si tipoDocRec = 99
+  tipoCodAut?: "E" | "A"; // "E"=CAE (default) | "A"=CAEA
+  codAut?: number | string; // CAE/CAEA (numérico)
 }) {
   const payload = {
     ver: params.ver ?? 1,
-    fecha: params.fecha,
-    cuit: params.cuit,
-    ptoVta: params.ptoVta,
-    tipoCmp: params.tipoCmp,
-    nroCmp: params.nroCmp,
-    importe: Number(params.importe.toFixed(2)),
+    fecha: params.fecha,                       // "YYYY-MM-DD"
+    cuit: Number(params.cuit),
+    ptoVta: Number(params.ptoVta),
+    tipoCmp: Number(params.tipoCmp),
+    nroCmp: Number(params.nroCmp),
+    // AFIP permite decimales. Forzamos 2 para coherencia visual.
+    importe: Number(Number(params.importe).toFixed(2)),
     moneda: params.moneda ?? "PES",
     ctz: params.ctz ?? 1,
-    tipoDocRec: params.tipoDocRec,
-    nroDocRec: params.nroDocRec,
-    tipoCod: params.tipoCod ?? "E",
+    tipoDocRec: Number(params.tipoDocRec),
+    nroDocRec: params.tipoDocRec === 99 ? 0 : Number(params.nroDocRec),
+    tipoCodAut: params.tipoCodAut ?? "E",
+    // Acepta string o número; aseguramos numérico puro
+    codAut: params.codAut != null ? Number(String(params.codAut).replace(/\D/g, "")) : undefined,
   };
-  const b64 = toBase64BrowserSafe(JSON.stringify(payload));
-  return `https://www.afip.gob.ar/fe/qr/?p=${b64}`;
+
+  const p = toBase64(JSON.stringify(payload));
+  return `https://www.afip.gob.ar/fe/qr/?p=${p}`;
 }
 
 export function todayAfip() {

@@ -1,9 +1,22 @@
-// useAccountStore.ts
 'use client';
 
 import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
 import type { AuthSession, Account } from "./types";
+
+type InvoiceTemplate = {
+  id: string;
+  cuit: string;
+  ptoVta: number;
+  logoUrl?: string | null;
+  fantasia: string;
+  telefono?: string | null;
+  email?: string | null;
+  domicilio: string;
+  footerHtml?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
 
 type AccountState = {
   account: Account | null;
@@ -14,6 +27,9 @@ type AccountState = {
   /** punto de venta activo (número AFIP, ej: 4) */
   activePv: number | null;
 
+  /** plantillas por punto de venta */
+  invoiceTemplatesByPv: Record<number, InvoiceTemplate>;
+
   // actions
   setAuth: (auth: AuthSession | null) => void;
   setAccount: (acc: Account | null) => void;
@@ -22,6 +38,11 @@ type AccountState = {
   // PV actions
   setActivePv: (pvNumber: number | null) => void;
   initActivePvFromStorage: () => void;
+
+  // Templates actions
+  setInvoiceTemplates: (arr: InvoiceTemplate[]) => void;
+  fetchInvoiceTemplates: (cuit?: string) => Promise<void>;
+  getActiveTemplate: () => InvoiceTemplate | null;
 
   // API actions
   fetchAccount: (cuit?: string) => Promise<void>;
@@ -33,9 +54,8 @@ type AccountState = {
 };
 
 const STORAGE_KEY = "account-store-v1";
-const API_BASE = process.env.NEXT_PUBLIC_NEST_URL ?? "http://localhost:3000";
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? "http://localhost:3000";
 
-// Helper para leer del sessionStorage creado por tu login actual
 const readSessionAuth = (): AuthSession | null => {
   if (typeof window === "undefined") return null;
   const token = sessionStorage.getItem("authToken") || "";
@@ -57,6 +77,7 @@ export const useAccountStore = create<AccountState>()(
         error: null,
 
         activePv: null,
+        invoiceTemplatesByPv: {},
 
         setAuth: (auth) => set({ auth }),
         setAccount: (account) => set({ account }),
@@ -64,7 +85,14 @@ export const useAccountStore = create<AccountState>()(
           if (typeof window !== "undefined") {
             sessionStorage.removeItem("active_pv");
           }
-          set({ account: null, auth: null, loading: false, error: null, activePv: null });
+          set({
+            account: null,
+            auth: null,
+            loading: false,
+            error: null,
+            activePv: null,
+            invoiceTemplatesByPv: {},
+          });
         },
 
         setActivePv: (pvNumber) => {
@@ -75,7 +103,6 @@ export const useAccountStore = create<AccountState>()(
             } else {
               sessionStorage.setItem("active_pv", String(pvNumber));
             }
-            // Asegurar CUIT en sessionStorage
             const state = get();
             const cuit =
               state.account?.cuit ??
@@ -89,14 +116,66 @@ export const useAccountStore = create<AccountState>()(
         initActivePvFromStorage: () => {
           if (typeof window === "undefined") return;
           const raw = sessionStorage.getItem("active_pv");
-          if (raw && /^\d+$/.test(raw)) {
-            set({ activePv: Number(raw) });
+          if (raw && /^\d+$/.test(raw)) set({ activePv: Number(raw) });
+        },
+
+        setInvoiceTemplates: (arr) => {
+          const map: Record<number, InvoiceTemplate> = {};
+          for (const t of arr) map[t.ptoVta] = t;
+          set({ invoiceTemplatesByPv: map });
+        },
+
+        fetchInvoiceTemplates: async (cuitOptional) => {
+          const { auth } = get();
+          const cuit = (cuitOptional || auth?.cuitEmisor || "").replace(/[^\d]/g, "");
+          if (!cuit) return;
+
+          try {
+            const r = await fetch(`${NEST_API_URL}/invoice-templates?cuit=${cuit}`, { cache: "no-store" });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data?.message || "No se pudieron obtener las plantillas");
+            const templates = (data?.templates ?? []) as InvoiceTemplate[];
+            get().setInvoiceTemplates(templates);
+
+            // si no hay pv activo, setear uno que exista en las plantillas o el primero de la cuenta
+            if (get().activePv == null) {
+              const pvFromTpl = templates[0]?.ptoVta;
+              if (typeof pvFromTpl === "number") {
+                get().setActivePv(pvFromTpl);
+              } else {
+                const first = get().account?.puntosVenta?.[0]?.id;
+                if (typeof first === "number") get().setActivePv(first);
+              }
+            }
+          } catch (e) {
+            // opcional: set error
           }
+        },
+
+        getActiveTemplate: () => {
+          const { activePv, invoiceTemplatesByPv } = get();
+          if (activePv == null) return null;
+          return invoiceTemplatesByPv[activePv] ?? null;
         },
 
         loadFromSessionStorage: () => {
           const auth = readSessionAuth();
           if (auth) set({ auth });
+
+          // Leer PV activo desde sessionStorage
+          if (typeof window !== "undefined") {
+            const raw = sessionStorage.getItem("active_pv");
+            if (raw && /^\d+$/.test(raw)) {
+              set({ activePv: Number(raw) });
+            } else {
+              // si no hay en storage, setear primer punto de venta conocido
+              const account = get().account;
+              const first = account?.puntosVenta?.[0]?.id;
+              if (typeof first === "number") {
+                get().setActivePv(first);
+              }
+            }
+          }
         },
 
         ensureAuthAndAccountLoaded: async () => {
@@ -106,7 +185,6 @@ export const useAccountStore = create<AccountState>()(
           if (cuit && !account) {
             await fetchAccount(cuit);
           }
-          // Cargar active_pv si aún no se inicializó
           if (get().activePv == null) {
             get().initActivePvFromStorage();
           }
@@ -119,15 +197,13 @@ export const useAccountStore = create<AccountState>()(
 
           set({ loading: true, error: null });
           try {
-            const r = await fetch(`${API_BASE}/accounts/${cuit}`, { cache: "no-store" });
+            const r = await fetch(`${NEST_API_URL}/accounts/${cuit}`, { cache: "no-store" });
             const data = await r.json();
             if (!r.ok) throw new Error(data?.message || "No se pudo obtener la cuenta");
 
-            // Aseguro que el cuit esté en el objeto account
             const account: Account = { cuit, ...data };
             set({ account, loading: false });
 
-            // Si no hay activePv en storage, seteo al primer PV (si existe)
             if (get().activePv == null) {
               const first = account.puntosVenta?.[0]?.id;
               if (typeof first === "number") {
@@ -147,7 +223,7 @@ export const useAccountStore = create<AccountState>()(
           set({ loading: true, error: null });
           try {
             const { cuit: _c, ...safePartial } = partial;
-            const r = await fetch(`${API_BASE}/accounts/${cuit}`, {
+            const r = await fetch(`${NEST_API_URL}/accounts/${cuit}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(safePartial),
@@ -171,6 +247,7 @@ export const useAccountStore = create<AccountState>()(
           auth: state.auth,
           account: state.account,
           activePv: state.activePv,
+          invoiceTemplatesByPv: state.invoiceTemplatesByPv,
         }),
       }
     )

@@ -1,20 +1,20 @@
-// src/components/customers/CustomerPicker.tsx
 "use client";
 
 import * as React from "react";
-import { UserSearch, UserPlus } from "lucide-react";
+import { PlusCircle, UserSearch } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Customer } from "@/lib/types";
-import { listCustomers } from "@/services/customers";
+import { listCustomersByEmitter } from "@/services/customers";
 import NewCustomerDialog from "./new-customer-dialog";
+import { useAccountStore } from "@/store/account";
 
 type Props = {
-  value: Customer | null;                     // cliente seleccionado
+  value: Customer | null;
   onChange: (customer: Customer | null) => void;
-  autoLoad?: boolean;                         // si true, hace fetch al montar
-  initialCustomers?: Customer[];              // opcional si ya tenés una lista
+  autoLoad?: boolean;
+  initialCustomers?: Customer[];
   className?: string;
 };
 
@@ -26,33 +26,49 @@ export default function CustomerPicker({
   className,
 }: Props) {
   const [customers, setCustomers] = React.useState<Customer[]>(initialCustomers);
-  const [search, setSearch] = React.useState<string>("");
-  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
-  // Cargar clientes del backend
-  React.useEffect(() => {
-    if (!autoLoad) return;
-    setLoading(true);
-    listCustomers()
-      .then(setCustomers)
-      .catch(() => {}) // podés mostrar toast si querés
-      .finally(() => setLoading(false));
-  }, [autoLoad]);
+  // solo para cerrar el popover al seleccionar; se resetea al tipear
+  const [closedBySelect, setClosedBySelect] = React.useState(false);
 
-  const filtered = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter((c) =>
-      [c.name, c.email, c.address, c.taxId].some((f) => f?.toLowerCase().includes(q))
-    );
-  }, [search, customers]);
+  const cuit = useAccountStore((s) => s.auth?.cuitEmisor) ?? "";
+
+  React.useEffect(() => {
+    if (!autoLoad || !cuit) return;
+    let alive = true;
+    setLoading(true);
+    listCustomersByEmitter(cuit)
+      .then((rows) => alive && setCustomers(rows))
+      .catch(() => {})
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [autoLoad, cuit]);
+
+  const q = search.trim().toLowerCase();
+  const hasQuery = q.length >= 4;
+  const open = hasQuery && !closedBySelect;
+
+  const filtered = hasQuery
+    ? customers
+        .filter((c) =>
+          [c.name, c.email, c.taxId]
+            .filter(Boolean)
+            .some((f) => String(f).toLowerCase().includes(q))
+        )
+        .slice(0, 50)
+    : [];
+
+  const handleChangeInput: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    setSearch(e.target.value);
+    setClosedBySelect(false); // si vuelvo a tipear, reabre cuando haya 4+
+  };
 
   const handleSelect = (c: Customer) => {
     onChange(c);
-    setOpen(false);
-    setSearch(c.name); // muestra el nombre en el input
+    setClosedBySelect(true); // cierra el popover
+    setSearch(c.name || ""); // muestra el nombre elegido
   };
 
   const handleCreated = (c: Customer) => {
@@ -63,28 +79,28 @@ export default function CustomerPicker({
   return (
     <div className={className}>
       <h3 className="text-lg font-semibold mb-2 text-primary">Detalles del Cliente</h3>
+
       <div className="flex gap-2">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open}>
           <PopoverTrigger asChild>
             <div className="relative flex-grow">
               <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Buscar un cliente..."
+                placeholder={loading ? "Cargando clientes..." : "Buscar un cliente..."}
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  if (!open) setOpen(true);
-                  if (value) onChange(null);
-                }}
+                onChange={handleChangeInput}
                 className="pl-10"
                 autoComplete="off"
-                disabled={loading}
+                disabled={loading || !cuit}
               />
             </div>
           </PopoverTrigger>
+
           <PopoverContent className="w-[--radix-popover-trigger-width] p-1" align="start">
             <div className="max-h-60 overflow-y-auto">
-              {filtered.length > 0 ? (
+              {loading ? (
+                <div className="p-2 text-sm text-muted-foreground">Cargando…</div>
+              ) : filtered.length > 0 ? (
                 filtered.map((c) => (
                   <div
                     key={c.id}
@@ -94,32 +110,27 @@ export default function CustomerPicker({
                     tabIndex={0}
                   >
                     <div className="font-medium">{c.name}</div>
-                    <div className="text-muted-foreground text-xs">{c.taxId} · {c.email}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {c.taxId} · {c.email}
+                    </div>
                   </div>
                 ))
               ) : (
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    setCreateOpen(true);
-                  }}
-                  className="w-full text-left p-2 text-sm rounded-md cursor-pointer hover:bg-accent focus:bg-accent outline-none flex items-center"
-                >
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Crear nuevo cliente “{search || "…" }”
-                </button>
+                <div className="p-2 text-sm text-muted-foreground">Sin resultados</div>
               )}
             </div>
           </PopoverContent>
         </Popover>
 
-        <Button variant="outline" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Nuevo
+        <Button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="md:col-span-1 bg-accent hover:bg-accent/90 px-4"
+        >
+          Nuevo cliente <PlusCircle className="h-5 w-5" />
         </Button>
       </div>
 
-      {/* Ficha resumida del seleccionado */}
       {value && (
         <div className="bg-secondary p-4 rounded-lg text-sm mt-4">
           <p className="font-bold">{value.name}</p>
