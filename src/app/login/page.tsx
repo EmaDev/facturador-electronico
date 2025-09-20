@@ -67,7 +67,7 @@ export default function LoginPage() {
       await store.fetchAccount(payload.cuit);
       await store.fetchInvoiceTemplates(payload.cuit);
 
-      router.push('/');
+      router.push('/dashboard');
       router.refresh();
       
     } catch (err: any) {
