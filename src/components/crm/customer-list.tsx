@@ -38,7 +38,7 @@ const customerSchema = z.object({
 type CustomerFormData = z.infer<typeof customerSchema>;
 
 const ITEMS_PER_PAGE = 10;
-const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? 'http://localhost:3000';
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL ?? 'http://localhost:3000';
 
 export function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);

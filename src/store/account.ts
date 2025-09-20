@@ -54,7 +54,7 @@ type AccountState = {
 };
 
 const STORAGE_KEY = "account-store-v1";
-const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? "http://localhost:3000";
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL ?? "http://localhost:3000";
 
 const readSessionAuth = (): AuthSession | null => {
   if (typeof window === "undefined") return null;

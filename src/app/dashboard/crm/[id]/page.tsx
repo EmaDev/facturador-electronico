@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import type { Customer } from '@/lib/types';
 import InvoiceListClient from '@/components/crm/InvoiceListClient';
 
-const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? 'http://localhost:3000';
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL ?? 'http://localhost:3000';
 
 async function getCustomerById(id: string): Promise<Customer | null> {
   try {

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_NEST_API_URL || "http://localhost:3000";
 const PREFIX = "/api";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

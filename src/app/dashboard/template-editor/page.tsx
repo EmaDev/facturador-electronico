@@ -11,7 +11,7 @@ import { Upload, Eye, Printer, Info, Store } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useAccountStore } from "@/store/account";
 
-const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? "http://localhost:3000";
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL ?? "http://localhost:3000";
 
 export default function TemplateEditorPage() {
 

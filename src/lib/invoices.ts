@@ -1,4 +1,4 @@
-const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_URL ?? "http://localhost:3000";
+const NEST_API_URL = process.env.NEXT_PUBLIC_NEST_API_URL ?? "http://localhost:3000";
 
 /** ===== Tipos (alineados al backend) ===== */
 export type SaveInvoiceItem = {
