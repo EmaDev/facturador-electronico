@@ -95,7 +95,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       <div className="text-center">
         <p className="text-xl text-muted-foreground">Cliente no encontrado.</p>
         <Button asChild variant="link" className="mt-4">
-          <Link href="/crm">
+          <Link href="/dashboard/crm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al CRM
           </Link>
@@ -113,7 +113,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
             <CardDescription>Detalles e Historial del Cliente</CardDescription>
           </div>
           <Button asChild variant="outline">
-            <Link href="/crm"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la Lista</Link>
+            <Link href="/dashboard/crm"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la Lista</Link>
           </Button>
         </div>
       </CardHeader>

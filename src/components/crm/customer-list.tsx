@@ -227,7 +227,7 @@ export function CustomerList() {
                     <TableCell>
                       <div className="flex gap-2">
                         <Button asChild variant="ghost" size="icon">
-                          <Link href={`/crm/${customer.id}`}>
+                          <Link href={`/dashboard/crm/${customer.id}`}>
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>

@@ -15,16 +15,16 @@ export function Navbar() {
   };
   
   const getCurrentTab = () => {
-    if (pathname.startsWith('/crm')) {
+    if (pathname.startsWith('/dashboard/crm')) {
       return '/crm';
     }
-    if (pathname.startsWith('/template-editor')) {
+    if (pathname.startsWith('/dashboard/template-editor')) {
       return '/template-editor';
     }
-    if (pathname.startsWith('/configuracion')) {
+    if (pathname.startsWith('/dashboard/configuracion')) {
         return '/configuracion';
     }
-    return '/factura';
+    return '/dashboard/factura';
   }
 
   const handleLogout = () => {
@@ -34,12 +34,12 @@ export function Navbar() {
 
   return (
     <div className="flex justify-between items-center">
-        <Tabs value={getCurrentTab()} onValueChange={handleTabChange}>
+        <Tabs onValueChange={handleTabChange}>
             <TabsList>
-                <TabsTrigger value="/factura">Factura</TabsTrigger>
-                <TabsTrigger value="/crm">CRM</TabsTrigger>
-                <TabsTrigger value="/template-editor">Editar Plantilla</TabsTrigger>
-                <TabsTrigger value="/configuracion">Configuración</TabsTrigger>
+                <TabsTrigger value="/dashboard/factura">Factura</TabsTrigger>
+                <TabsTrigger value="/dashboard/crm">CRM</TabsTrigger>
+                <TabsTrigger value="/dashboard/template-editor">Editar Plantilla</TabsTrigger>
+                <TabsTrigger value="/dashboard/configuracion">Configuración</TabsTrigger>
             </TabsList>
         </Tabs>
         <Button variant="ghost" onClick={handleLogout}>
