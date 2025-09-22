@@ -29,7 +29,10 @@ import { toast } from '@/hooks/use-toast';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'El nombre es requerido'),
-  email: z.string().email('Dirección de email inválida'),
+  email: z.union([
+    z.string().trim().length(0),
+    z.string().trim().email("Email inválido"),
+  ]),
   address: z.string().min(5, 'La dirección es requerida'),
   taxId: z.string().min(1, 'El CUIT/CUIL es requerido'),
   pointsOfSale: z.string().min(1, 'El punto de venta es requerido'),
@@ -292,7 +295,7 @@ export function CustomerList() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email (Opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="contact@acme.com" {...field} />
                     </FormControl>

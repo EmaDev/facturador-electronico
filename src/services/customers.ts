@@ -1,9 +1,8 @@
-// src/services/customers.ts
 import type { Customer, IvaCondition } from "@/lib/types";
 
 export type CreateCustomerPayload = {
   name: string;
-  email: string;
+  email: string|undefined;
   address: string;
   taxId: string;
   emitterCuit: string;

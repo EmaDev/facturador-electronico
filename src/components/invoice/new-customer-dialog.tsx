@@ -19,7 +19,10 @@ import { useAccountStore } from "@/store/account";
 
 const schema = z.object({
   name: z.string().min(2, "El nombre es requerido"),
-  email: z.string().email("Email inválido"),
+  email: z.union([
+    z.string().trim().length(0),
+    z.string().trim().email("Email inválido"), 
+  ]),
   address: z.string().min(5, "La dirección es requerida"),
   taxId: z.string().min(1, "CUIT/CUIL requerido"),
   ivaCondition: z.enum(["Responsable Inscripto", "Monotributista", "Exento", "Consumidor Final"], {
@@ -53,7 +56,7 @@ export default function NewCustomerDialog({ open, onOpenChange, presetName, onCr
     try {
       await createCustomer({
         name: data.name,
-        email: data.email,
+        email: data.email?.trim() === "" ? undefined : data.email,
         address: data.address,
         taxId: data.taxId,
         emitterCuit: account!.cuit,
@@ -84,7 +87,7 @@ export default function NewCustomerDialog({ open, onOpenChange, presetName, onCr
               <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField name="email" control={form.control} render={({ field }) => (
-              <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Email (opcional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField name="address" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

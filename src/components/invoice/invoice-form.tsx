@@ -23,6 +23,7 @@ import { ActivePointAlert } from './active-point-alert';
 import { useAccountStore } from '@/store/account';
 import { saveInvoice, SaveInvoicePayload } from '@/lib/invoices';
 
+
 const itemSchema = z.object({
   name: z.string().min(1, 'El nombre del item es requerido'),
   code: z.string().optional(),
@@ -326,7 +327,7 @@ export function InvoiceForm() {
 
   return (
     <>
-      <Card className="w-full max-w-5xl mx-auto shadow-lg">
+      <Card className="w-full max-w-6xl mx-auto shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Crear Factura</CardTitle>
           <ActivePointAlert />
@@ -345,16 +346,41 @@ export function InvoiceForm() {
 
           <div>
             <h3 className="text-lg font-semibold mb-4 text-primary">Items de la Factura</h3>
-            <form onSubmit={itemForm.handleSubmit(handleAddItem)}
-              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-start mb-4">
-              <Input {...itemForm.register('name')} placeholder="Nombre del Item" className="md:col-span-4" />
-              <Input {...itemForm.register('code')} placeholder="Código" className="md:col-span-2" />
-              <Input {...itemForm.register('quantity')} min={1} type="number" placeholder="Cant." className="md:col-span-1" />
-              <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Precio" className="md:col-span-2" />
-              <Input {...itemForm.register('discount')} type="number" placeholder="Dto. %" className="md:col-span-2" />
-              <Button type="submit" className="md:col-span-1 bg-accent hover:bg-accent/90 px-4">
-                Agregar<PlusCircle className="h-5 w-5" />
-              </Button>
+            <form
+              onSubmit={itemForm.handleSubmit(handleAddItem)}
+              className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start mb-4"
+            >
+              <div className="flex flex-col md:col-span-3">
+                <label className="text-sm font-medium mb-1">Nombre</label>
+                <Input {...itemForm.register('name')} placeholder="Nombre del Item" />
+              </div>
+
+              <div className="flex flex-col md:col-span-2">
+                <label className="text-sm font-medium mb-1">Código</label>
+                <Input {...itemForm.register('code')} placeholder="Código" />
+              </div>
+
+              <div className="flex flex-col md:col-span-2">
+                <label className="text-sm font-medium mb-1">Cant.</label>
+                <Input {...itemForm.register('quantity')} type="number" min={1} placeholder="Cant." />
+              </div>
+
+              <div className="flex flex-col md:col-span-2">
+                <label className="text-sm font-medium mb-1">Precio</label>
+                <Input {...itemForm.register('price')} type="number" step="0.01" placeholder="Precio" />
+              </div>
+
+              <div className="flex flex-col md:col-span-1">
+                <label className="text-sm font-medium mb-1">Dto. %</label>
+                <Input {...itemForm.register('discount')} type="number" placeholder="Dto. %" />
+              </div>
+
+              <div className="flex flex-col md:col-span-2">
+                <label className="text-sm font-medium mb-1 invisible">Acción</label>
+                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 px-4">
+                  Agregar <PlusCircle className="h-5 w-5" />
+                </Button>
+              </div>
             </form>
 
             <div className="rounded-md border">

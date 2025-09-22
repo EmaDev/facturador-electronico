@@ -1,10 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, UserSearch } from "lucide-react";
+import { PlusCircle, UserSearch, Pencil, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog"; // NEW
 import type { Customer } from "@/lib/types";
 import { listCustomersByEmitter } from "@/services/customers";
 import NewCustomerDialog from "./new-customer-dialog";
@@ -34,6 +37,36 @@ export default function CustomerPicker({
   const [closedBySelect, setClosedBySelect] = React.useState(false);
 
   const cuit = useAccountStore((s) => s.auth?.cuitEmisor) ?? "";
+
+  // --- NEW: estado para editar domicilio de facturación
+  const [editAddrOpen, setEditAddrOpen] = React.useState(false);
+  const [tempBillingAddr, setTempBillingAddr] = React.useState("");
+  const originalAddrRef = React.useRef<string | null>(null);
+  const hasOverride =
+    originalAddrRef.current !== null && value?.address === tempBillingAddr;
+
+  const openEditAddress = () => {
+    if (!value) return;
+    // guardo el original la primera vez que abro
+    if (originalAddrRef.current === null) originalAddrRef.current = value.address ?? "";
+    setTempBillingAddr(value.address ?? "");
+    setEditAddrOpen(true);
+  };
+
+  const applyBillingAddress = () => {
+    if (!value) return;
+    onChange({ ...value, address: tempBillingAddr } as Customer);
+    setEditAddrOpen(false);
+  };
+
+  const resetBillingAddress = () => {
+    if (!value) return;
+    const original = originalAddrRef.current ?? value.address ?? "";
+    onChange({ ...value, address: original } as Customer);
+    originalAddrRef.current = null;
+    setTempBillingAddr("");
+  };
+  // --- NEW end
 
   React.useEffect(() => {
     if (!autoLoad || !cuit) return;
@@ -67,8 +100,11 @@ export default function CustomerPicker({
 
   const handleSelect = (c: Customer) => {
     onChange(c);
-    setClosedBySelect(true); // cierra el popover
-    setSearch(c.name || ""); // muestra el nombre elegido
+    // al elegir un cliente nuevo, borro cualquier override previo
+    originalAddrRef.current = null;          // NEW
+    setTempBillingAddr("");                  // NEW
+    setClosedBySelect(true);
+    setSearch(c.name || "");
   };
 
   const handleCreated = (c: Customer) => {
@@ -125,7 +161,7 @@ export default function CustomerPicker({
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="md:col-span-1 bg-accent hover:bg-accent/90 px-4"
+          className="bg-accent hover:bg-accent/90 px-4"
         >
           Nuevo cliente <PlusCircle className="h-5 w-5" />
         </Button>
@@ -133,13 +169,77 @@ export default function CustomerPicker({
 
       {value && (
         <div className="bg-secondary p-4 rounded-lg text-sm mt-4">
-          <p className="font-bold">{value.name}</p>
-          <p className="text-muted-foreground">{value.email}</p>
-          <p className="text-muted-foreground">{value.address}</p>
-          <p className="text-muted-foreground">CUIT/CUIL: {value.taxId}</p>
-          <p className="text-muted-foreground">Cond. IVA: {value.ivaCondition ?? "-"}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-bold">{value.name}</p>
+              <p className="text-muted-foreground">{value.email}</p>
+              <p className="text-muted-foreground">
+                <span className="font-medium">Domicilio (facturación):</span>{" "}
+                {value.address}
+                {hasOverride && (
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-amber-200/60 text-amber-900">
+                    modificado
+                  </span>
+                )}
+              </p>
+              <p className="text-muted-foreground">CUIT/CUIL: {value.taxId}</p>
+              <p className="text-muted-foreground">Cond. IVA: {value.ivaCondition ?? "-"}</p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={openEditAddress}
+                className="whitespace-nowrap"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Editar domicilio facturación
+              </Button>
+
+              {hasOverride && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetBillingAddress}
+                  className="whitespace-nowrap"
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Restaurar domicilio
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Dialog para editar domicilio de facturación */}
+      <Dialog open={editAddrOpen} onOpenChange={setEditAddrOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar domicilio de facturación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Domicilio</label>
+            <Input
+              value={tempBillingAddr}
+              onChange={(e) => setTempBillingAddr(e.target.value)}
+              placeholder="Calle, número, piso, localidad"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setEditAddrOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={applyBillingAddress}>
+              Usar en esta factura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <NewCustomerDialog
         open={createOpen}
