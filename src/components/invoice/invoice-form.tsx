@@ -40,6 +40,7 @@ export function InvoiceForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const { toast } = useToast();
+  const [isloading, setIsLoading] = useState<boolean>(false);
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -77,6 +78,7 @@ export function InvoiceForm() {
   };
 
   const resetInvoiceState = () => {
+    setIsLoading(false);
     // limpia selección de cliente y búsqueda
     setSelectedCustomer(null);
 
@@ -96,7 +98,7 @@ export function InvoiceForm() {
 
   const handleInvoice = async () => {
 
-    const { auth, account, activePv } = useAccountStore.getState();
+    const { auth, account, activePv, invoiceTemplatesByPv} = useAccountStore.getState();
 
     if (!auth?.wsaa_token || !auth?.wsaa_sign || !auth?.cuitEmisor) {
       alert('No hay credenciales WSAA o CUIT emisor. Inicie sesión.');
@@ -110,6 +112,7 @@ export function InvoiceForm() {
 
     if (!selectedCustomer || invoiceItems.length === 0) return;
 
+    setIsLoading(true);
     // Para servicios usar Concepto 2/3; acá dejamos 1 (Productos)
     const CONCEPTO = 1;
     const MONEDA = "PES";
@@ -263,13 +266,14 @@ export function InvoiceForm() {
       }
       // 10) Armar payload completo para el PDF
       const dataPtventa = account?.puntosVenta?.find(ptvta => ptvta.id === activePv);
+      const tpl = invoiceTemplatesByPv?.[activePv];
       const seller = {
         companyName: account?.companyname || '-----',
         fantasyName: dataPtventa?.fantasia || account?.companyname || '-----',
         companyAddress: dataPtventa?.domicilio || account?.domicilio || '----',
         companyPhone: account?.telefono || '',
         vatCondition: account?.ivaCondition || '',
-        logoDataUrl: dataPtventa?.logoUrl || ""
+        logoDataUrl: tpl?.logoUrl || ""
       };
 
       const qrDataUrl = await QRCode.toDataURL(qrUrl, {
@@ -320,6 +324,7 @@ export function InvoiceForm() {
         description: 'Factura creada correctamente.',
       });
     } catch (e: any) {
+      setIsLoading(false);
       console.error("FECAESolicitar error:", e);
       alert(`Error al facturar: ${String(e?.message ?? e)}`);
     }
@@ -451,10 +456,10 @@ export function InvoiceForm() {
         <CardFooter className="flex justify-end gap-2">
           <Button
             variant="default"
-            disabled={!selectedCustomer || invoiceItems.length === 0}
+            disabled={!selectedCustomer || invoiceItems.length === 0 || isloading}
             onClick={handleInvoice}
           >
-            Facturar
+            {isloading ? "Facturando" : "Facturar"}
             <Send className="ml-2 h-4 w-4" />
           </Button>
         </CardFooter>
