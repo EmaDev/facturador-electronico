@@ -57,7 +57,7 @@ export function deepGet<T = any>(obj: any, paths: string[]): T | undefined {
     try {
       const v = p.split(".").reduce((o: any, k) => (o?.[k]), obj);
       if (v !== undefined && v !== null) return v as T;
-    } catch {}
+    } catch { }
   }
   return undefined;
 }
@@ -125,5 +125,47 @@ export function mapCondIvaToId(cond?: IvaCondition): number {
     case "Consumidor Final": return 5;
     case "Monotributista": return 6;
     default: return 5; // CF por defecto
+  }
+}
+
+
+export function resolveCustomerDocTipo(customerTaxId: string): {
+  DocTipo: number;
+  DocNro: number;
+} {
+  const onlyDigits = (s: string) => (s || "").replace(/[^\d]/g, "");
+  const taxId = onlyDigits(customerTaxId);
+
+  let DocTipo = 99; // Consumidor Final por defecto
+  let DocNro = 0;
+
+  if (taxId) {
+    if (taxId.length === 11) {
+      // Puede ser CUIT o CUIL
+      const prefix = taxId.slice(0, 2);
+      if (["20", "23", "24", "27"].includes(prefix)) {
+        DocTipo = 86; // CUIL
+      } else {
+        DocTipo = 80; // CUIT
+      }
+      DocNro = Number(taxId);
+    } else if (taxId.length === 8) {
+      DocTipo = 96; // DNI
+      DocNro = Number(taxId);
+    }
+  }
+  return {
+    DocTipo,
+    DocNro
+  };
+}
+
+export function mapFacturaToCbteAsocTipo(facturaTipo: number): number {
+  switch (facturaTipo) {
+    case 1: return 91;   // Factura A → Asociar con 91
+    case 6: return 88;   // Factura B → Asociar con 88
+    case 11: return 995; // Factura C → Asociar con 995 (usualmente, validar en tablas AFIP)
+    default:
+      throw new Error(`CbteTipo ${facturaTipo} no soportado para asociación`);
   }
 }

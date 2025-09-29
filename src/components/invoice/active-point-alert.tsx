@@ -52,7 +52,7 @@ export const ActivePointAlert = () => {
       <Alert className="md:col-span-2 bg-[#ffe4bc] border-primary/20">
         <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-primary">
           <span className="flex items-center gap-2">
-            <Store className="h-4 w-4" />
+            <Store className="h-5 w-5" />
             Estás facturando desde:&nbsp;
             <strong>
               {current?.fantasia ?? '—'} (N° {current?.id != null ? pad4(current.id) : '----'})

@@ -179,8 +179,19 @@ export const useAccountStore = create<AccountState>()(
         },
 
         ensureAuthAndAccountLoaded: async () => {
-          const { auth, account, fetchAccount, loadFromSessionStorage } = get();
+          const { auth, account, fetchAccount, loadFromSessionStorage, clear } = get();
           if (!auth) loadFromSessionStorage();
+
+          const expires = get().auth?.wsaa_expires;
+          if (expires) {
+            const expDate = new Date(expires).getTime();
+            if (Date.now() >= expDate) {
+              // Token vencido
+              clear();
+              return;
+            }
+          }
+
           const cuit = get().auth?.cuitEmisor ?? account?.cuit;
           if (cuit && !account) {
             await fetchAccount(cuit);

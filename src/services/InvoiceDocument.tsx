@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   headerLeft: { flex: 1, padding: 8 },
   headerRight: { width: 220, padding: 8 },
 
-  hCompany: { fontSize: 16, fontWeight: 700, textAlign: "center" },
+  hCompany: { fontSize: 12, fontWeight: 700, textAlign: "center", flexWrap: "wrap" },
   textCenter: { textAlign: "center" },
   bold: { fontWeight: 700 },
 
@@ -204,15 +204,29 @@ function cbteMeta(cbteTipo: number): { letter: string; code: string; title: stri
 }
 
 /** ===================== Componentes parciales ===================== */
+function insertarSaltoLinea(texto:string, limite = 20) {
+  if (texto.length <= limite) return texto; // No hace falta cortar
+
+  // Buscar el primer espacio después del límite
+  const indiceEspacio = texto.indexOf(' ', limite);
+
+  if (indiceEspacio === -1) {
+    // Si no hay espacio después del límite, no cortamos
+    return texto;
+  }
+
+  // Insertar salto de línea en el primer espacio luego del límite
+  return texto.slice(0, indiceEspacio) + '\n' + texto.slice(indiceEspacio + 1);
+}
 
 const SellerHeader: React.FC<{ seller: Seller }> = ({ seller }) => (
   <View style={[styles.border, styles.headerLeft, { alignItems: "center", justifyContent: "center" }]}>
     {/* Logo + nombre de fantasía centrados */}
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 6 }}>
       {seller.logoDataUrl ? (
-        <Image src={seller.logoDataUrl} style={{ width: 60, height: 60, marginRight: 4 }} />
+        <Image src={seller.logoDataUrl} style={{ width: 80, maxHeight: 60, marginRight: 4 }} />
       ) : null}
-      <Text style={[styles.hCompany]}>{seller.fantasyName ?? seller.companyName}</Text>
+      <Text style={[styles.hCompany]}>{insertarSaltoLinea(seller.fantasyName, 15) ?? insertarSaltoLinea(seller.companyName)}</Text>
     </View>
 
     {/* Datos adicionales de la empresa */}

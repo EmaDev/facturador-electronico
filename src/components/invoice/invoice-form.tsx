@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import QRCode from "qrcode";
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,17 +11,20 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Trash2, Send } from 'lucide-react';
+import { PlusCircle, Trash2, Send, FileText, Info } from 'lucide-react';
 import type { Customer, InvoiceItem } from '@/lib/types';
 import { fecaesolicitar, feCompUltimoAutorizado } from '@/services/wsfe';
 import { generateInvoicePdf, downloadBlob } from "@/services/generateInvoicePdf";
-import { buildAfipQrURL, deepGet, mapCondIvaToId, normalizeAfipDate, pickFirstDet, resolveCbteTipo, todayAfip } from "@/lib/afip";
+import { buildAfipQrURL, deepGet, mapCondIvaToId, mapFacturaToCbteAsocTipo, normalizeAfipDate, pickFirstDet, resolveCbteTipo, resolveCustomerDocTipo, todayAfip } from "@/lib/afip";
 import { useToast } from '@/hooks/use-toast';
-import CustomerPicker from './customer-picker';
+import CustomerPicker, { CustomerPickerHandle } from './customer-picker';
 import { computePerItemTax } from "@/lib/tax";
 import { ActivePointAlert } from './active-point-alert';
 import { useAccountStore } from '@/store/account';
 import { saveInvoice, SaveInvoicePayload } from '@/lib/invoices';
+import { Alert, AlertDescription } from '../ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Label } from '../ui/label';
 
 
 const itemSchema = z.object({
@@ -35,12 +38,24 @@ const itemSchema = z.object({
 
 type ItemFormData = z.infer<typeof itemSchema>;
 
+const documentTypes = [
+  { id: '1', name: 'Factura A' },
+  { id: '6', name: 'Factura B' },
+  { id: '11', name: 'Factura C' },
+  { id: '3', name: 'Nota de Crédito A' },
+  { id: '8', name: 'Nota de Crédito B' },
+  { id: '13', name: 'Nota de Crédito C' },
+];
+
 
 export function InvoiceForm() {
+  const [isloading, setIsLoading] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const { toast } = useToast();
-  const [isloading, setIsLoading] = useState<boolean>(false);
+  const customerPickerRef = useRef<CustomerPickerHandle>(null);
+  const [selectedDocumentType, setSelectedDocumentType] = useState(documentTypes[0]); // o el default
+  const [associatedInvoice, setAssociatedInvoice] = useState("");
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -77,15 +92,28 @@ export function InvoiceForm() {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
   };
 
+  const handleDocumentTypeChange = (id: string) => {
+    const found = documentTypes.find(d => d.id === id);
+    if (found) setSelectedDocumentType(found);
+  };
+
+  const isCreditNote = ['3', '8', '13'].includes(selectedDocumentType.id);
+  const isFacturaA = useMemo(() => selectedDocumentType.id === '1', [selectedDocumentType]);
+
   const resetInvoiceState = () => {
     setIsLoading(false);
-    // limpia selección de cliente y búsqueda
-    setSelectedCustomer(null);
 
-    // limpia items
+    // reset cliente y búsqueda
+    setSelectedCustomer(null);
+    customerPickerRef.current?.reset();
+
+    // reset ítems
     setInvoiceItems([]);
 
-    // limpia el mini-form de "agregar ítem"
+    // reset comprobante
+    setSelectedDocumentType(documentTypes[0]);
+
+    // reset formulario ítems
     itemForm.reset({
       name: '',
       code: '',
@@ -93,12 +121,12 @@ export function InvoiceForm() {
       price: undefined as unknown as number,
       discount: undefined as unknown as number,
     });
-
+    setSelectedDocumentType(documentTypes[0]);
   };
 
   const handleInvoice = async () => {
 
-    const { auth, account, activePv, invoiceTemplatesByPv} = useAccountStore.getState();
+    const { auth, account, activePv, invoiceTemplatesByPv } = useAccountStore.getState();
 
     if (!auth?.wsaa_token || !auth?.wsaa_sign || !auth?.cuitEmisor) {
       alert('No hay credenciales WSAA o CUIT emisor. Inicie sesión.');
@@ -123,16 +151,13 @@ export function InvoiceForm() {
 
     const emisorCond = account?.ivaCondition ?? 'Responsable Inscripto';
     const receptorCond = selectedCustomer?.ivaCondition;
-    const cbteTipo = resolveCbteTipo(emisorCond, receptorCond);
+    //const cbteTipo = resolveCbteTipo(emisorCond, receptorCond);
+    const cbteTipo = Number(selectedDocumentType.id);
 
     const { lines, neto, iva, total, ivaItems, /*isFacturaA*/ } = computePerItemTax(invoiceItems, cbteTipo);
 
     // 2) Doc receptor
-    const onlyDigits = (s: string) => (s || "").replace(/[^\d]/g, "");
-    const rcuit = onlyDigits(selectedCustomer.taxId);
-    const DocTipo = rcuit ? 80 : 99;
-    const DocNro = rcuit ? Number(rcuit) : 0;
-
+    const { DocTipo, DocNro } = resolveCustomerDocTipo(selectedCustomer.taxId)
 
     // 3) Fecha
     const { yyyymmdd, iso } = todayAfip();
@@ -156,7 +181,7 @@ export function InvoiceForm() {
 
     // 5) Detalle Arca
 
-    const detalle = {
+    const detalle: any = {
       Concepto: CONCEPTO,
       DocTipo,
       DocNro,
@@ -175,6 +200,17 @@ export function InvoiceForm() {
       Iva: ivaItems, // ← agrupado por tasa (AlicIva[])
     };
 
+    if (isCreditNote && associatedInvoice) {
+      //const [ptoStr, nroStr] = associatedInvoice.split("-");
+      detalle.CbtesAsoc = [
+        {
+          Tipo: mapFacturaToCbteAsocTipo(cbteTipo === 3 ? 1 : cbteTipo === 8 ? 6 : 11), // factura a la que refiere
+          PtoVta: activePv,
+          Nro: Number(associatedInvoice),
+        },
+      ];
+    }
+
     // 6) Llamada al microservicio
     const body = {
       auth: { wsaa_token: auth.wsaa_token, wsaa_sign: auth.wsaa_sign, cuit: auth.cuitEmisor },
@@ -183,7 +219,6 @@ export function InvoiceForm() {
 
     try {
       const resp = await fecaesolicitar(body);
-      console.log(resp)
 
       // 7) Extraer nro/CAE/CAE Vto de forma robusta
       const nroCmp =
@@ -317,7 +352,7 @@ export function InvoiceForm() {
         showCustomerOnAllPages: false,
       });
       downloadBlob(blob, `Factura-${numberStr}.pdf`);
-
+      setIsLoading(false);
       resetInvoiceState()
       toast({
         title: '¡Éxito!',
@@ -340,6 +375,7 @@ export function InvoiceForm() {
         <CardContent>
 
           <CustomerPicker
+            ref={customerPickerRef}
             value={selectedCustomer}
             onChange={setSelectedCustomer}
             autoLoad={true}              // trae de /api/customers
@@ -348,7 +384,48 @@ export function InvoiceForm() {
           />
 
           <Separator className="my-6" />
-
+          <Alert className="bg-red-100 border-red-200 mb-4">
+            <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-secondary-foreground">
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-secondary-foreground" />
+                Tipo de Documento: <strong>{selectedDocumentType.name}</strong>
+              </span>
+              <Select
+                value={selectedDocumentType.id}
+                onValueChange={handleDocumentTypeChange}
+              >
+                <SelectTrigger className="w-full sm:w-[200px] bg-background">
+                  <SelectValue placeholder="Cambiar tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {documentTypes.map((doc) => (
+                    <SelectItem key={doc.id} value={doc.id}>
+                      {doc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </AlertDescription>
+          </Alert>
+          {isFacturaA && (
+            <Alert variant="default" className="border-red-200 bg-red-50 my-3">
+              <Info className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                Si es Factura A, el monto debe ser bruto. Se calculará el IVA agregado al facturar.
+              </AlertDescription>
+            </Alert>
+          )}
+          {isCreditNote && (
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="associated-invoice">Nro de comprobante asociado</Label>
+              <Input
+                id="associated-invoice"
+                value={associatedInvoice}
+                onChange={(e) => setAssociatedInvoice(e.target.value)}
+                placeholder="Ej: 0001-00012345"
+              />
+            </div>
+          )}
           <div>
             <h3 className="text-lg font-semibold mb-4 text-primary">Items de la Factura</h3>
             <form

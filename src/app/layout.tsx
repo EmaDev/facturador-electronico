@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import AuthWatcher from "@/components/AuthWatcher";
 
 export const metadata: Metadata = {
   title: "AI Facturador Online",
@@ -24,6 +25,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
+        <AuthWatcher/>
         {children}
         <Toaster />
       </body>
