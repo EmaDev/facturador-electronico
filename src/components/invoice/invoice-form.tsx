@@ -11,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Trash2, Send, FileText, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Send, FileText, Info, Calendar, Printer } from 'lucide-react';
 import type { Customer, InvoiceItem } from '@/lib/types';
-import { fecaesolicitar, feCompUltimoAutorizado } from '@/services/wsfe';
+import { createLog, fecaesolicitar, feCompUltimoAutorizado, fetchLogs } from '@/services/wsfe';
 import { generateInvoicePdf, downloadBlob } from "@/services/generateInvoicePdf";
 import { buildAfipQrURL, deepGet, mapCondIvaToId, mapFacturaToCbteAsocTipo, normalizeAfipDate, pickFirstDet, resolveCbteTipo, resolveCustomerDocTipo, todayAfip } from "@/lib/afip";
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ import { saveInvoice, SaveInvoicePayload } from '@/lib/invoices';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Label } from '../ui/label';
+import { useInvoiceProcessor } from '@/hooks/useInvoiceProcessor';
 
 
 const itemSchema = z.object({
@@ -56,6 +57,11 @@ export function InvoiceForm() {
   const customerPickerRef = useRef<CustomerPickerHandle>(null);
   const [selectedDocumentType, setSelectedDocumentType] = useState(documentTypes[0]); // o el default
   const [associatedInvoice, setAssociatedInvoice] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // formato YYYY-MM-DD
+  });
+  const [isQuoteLoading, setIsQuoteLoading] = useState<boolean>(false);
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -97,9 +103,6 @@ export function InvoiceForm() {
     if (found) setSelectedDocumentType(found);
   };
 
-  const isCreditNote = ['3', '8', '13'].includes(selectedDocumentType.id);
-  const isFacturaA = useMemo(() => selectedDocumentType.id === '1', [selectedDocumentType]);
-
   const resetInvoiceState = () => {
     setIsLoading(false);
 
@@ -121,187 +124,59 @@ export function InvoiceForm() {
       price: undefined as unknown as number,
       discount: undefined as unknown as number,
     });
+    setInvoiceDate(new Date().toISOString().split("T")[0]);
     setSelectedDocumentType(documentTypes[0]);
   };
 
-  const handleInvoice = async () => {
+  const { createInvoice, isLoading } = useInvoiceProcessor({
+    onSuccess: () => {
+      resetInvoiceState(); // Resetea el form cuando todo sale bien
+    },
+  });
 
-    const { auth, account, activePv, invoiceTemplatesByPv } = useAccountStore.getState();
+  const isCreditNote = ['3', '8', '13'].includes(selectedDocumentType.id);
+  const isFacturaA = useMemo(() => selectedDocumentType.id === '1', [selectedDocumentType]);
 
-    if (!auth?.wsaa_token || !auth?.wsaa_sign || !auth?.cuitEmisor) {
-      alert('No hay credenciales WSAA o CUIT emisor. Inicie sesión.');
-      return;
-    }
+  const isSubmitDisabled =
+    !selectedCustomer ||
+    invoiceItems.length === 0 ||
+    isLoading ||
+    (isCreditNote && !associatedInvoice.trim());
 
-    if (!activePv) {
-      alert('Seleccioná un Punto de Venta activo antes de facturar.');
-      return;
-    }
+  const isQuoteDisabled =
+    !selectedCustomer ||
+    invoiceItems.length === 0 ||
+    isLoading || // Carga de facturación
+    isQuoteLoading; // Carga de presupuesto
 
-    if (!selectedCustomer || invoiceItems.length === 0) return;
+  const handleFormSubmit = async () => {
+    if (!selectedCustomer) return; // Validación simple en el componente
 
-    setIsLoading(true);
-    // Para servicios usar Concepto 2/3; acá dejamos 1 (Productos)
-    const CONCEPTO = 1;
-    const MONEDA = "PES";
+    await createInvoice(
+      selectedCustomer,
+      invoiceItems,
+      selectedDocumentType.id,
+      invoiceDate,
+      associatedInvoice
+    );
+  };
 
+  // --- ¡NUEVA FUNCIÓN PARA EL PRESUPUESTO! ---
+  const handlePrintQuote = async () => {
+    if (isQuoteDisabled) return; // Doble chequeo
 
-    // 1) Credenciales WSAA
-    const cuitEmisor = sessionStorage.getItem("user_cuit") || "";
-
-    const emisorCond = account?.ivaCondition ?? 'Responsable Inscripto';
-    const receptorCond = selectedCustomer?.ivaCondition;
-    //const cbteTipo = resolveCbteTipo(emisorCond, receptorCond);
-    const cbteTipo = Number(selectedDocumentType.id);
-
-    const { lines, neto, iva, total, ivaItems, /*isFacturaA*/ } = computePerItemTax(invoiceItems, cbteTipo);
-
-    // 2) Doc receptor
-    const { DocTipo, DocNro } = resolveCustomerDocTipo(selectedCustomer.taxId)
-
-    // 3) Fecha
-    const { yyyymmdd, iso } = todayAfip();
-
-    // 4) último autorizado
-    let nextN = 0;
-    try {
-      const ul = await feCompUltimoAutorizado(activePv, cbteTipo, {
-        wsaa_token: auth.wsaa_token,
-        wsaa_sign: auth.wsaa_sign,
-        cuit: auth.cuitEmisor,
-      });
-      const ult = deepGet<number>(ul, [
-        "Envelope.Body.FECompUltimoAutorizadoResponse.FECompUltimoAutorizadoResult.CbteNro",
-        "CbteNro"
-      ]) ?? 0;
-      nextN = Number(ult) + 1;
-    } catch {
-      nextN = 0; // dejá que el backend asigne
-    }
-
-    // 5) Detalle Arca
-
-    const detalle: any = {
-      Concepto: CONCEPTO,
-      DocTipo,
-      DocNro,
-      CbteDesde: nextN || 0,
-      CbteHasta: nextN || 0,
-      CbteFch: yyyymmdd,
-      ImpTotal: total,
-      ImpTotConc: 0,
-      ImpNeto: neto,
-      ImpOpEx: 0,
-      ImpIVA: iva,
-      ImpTrib: 0,
-      CondicionIVAReceptorId: mapCondIvaToId(receptorCond),
-      MonId: MONEDA,
-      MonCotiz: 1,
-      Iva: ivaItems, // ← agrupado por tasa (AlicIva[])
-    };
-
-    if (isCreditNote && associatedInvoice) {
-      //const [ptoStr, nroStr] = associatedInvoice.split("-");
-      detalle.CbtesAsoc = [
-        {
-          Tipo: mapFacturaToCbteAsocTipo(cbteTipo === 3 ? 1 : cbteTipo === 8 ? 6 : 11), // factura a la que refiere
-          PtoVta: activePv,
-          Nro: Number(associatedInvoice),
-        },
-      ];
-    }
-
-    // 6) Llamada al microservicio
-    const body = {
-      auth: { wsaa_token: auth.wsaa_token, wsaa_sign: auth.wsaa_sign, cuit: auth.cuitEmisor },
-      data: { PtoVta: activePv, CbteTipo: cbteTipo, detalle },
-    };
+    setIsQuoteLoading(true);
 
     try {
-      const resp = await fecaesolicitar(body);
+      const { auth, account, activePv, invoiceTemplatesByPv } = useAccountStore.getState();
+      // 1. Calcular totales (simulando el tipo de factura para los impuestos)
+      const cbteTipo = Number(selectedDocumentType.id);
+      const { lines } = computePerItemTax(invoiceItems, cbteTipo);
+      const { iso } = todayAfip(invoiceDate);
 
-      // 7) Extraer nro/CAE/CAE Vto de forma robusta
-      const nroCmp =
-        resp?.Envelope?.Body?.FECAESolicitarResponse?.FECAESolicitarResult?.FeCabResp?.CbteHasta ??
-        resp?.FeCabResp?.CbteHasta ??
-        resp?.CbteHasta ??
-        nextN;
-
-      // Tomar el primer detalle si viene array
-      const det = pickFirstDet(resp);
-
-      // CAE y Vto (pueden venir como number/string/objeto)
-      const cae: string = String(det?.CAE ?? "");
-      const caeVto: string = normalizeAfipDate(det?.CAEFchVto);
-
-      // Formatear número final
-      const numberStr = `${String(activePv).padStart(4, "0")}-${String(nroCmp).padStart(8, "0")}`;
-
-      // 8) QR ARCA
-      const qrUrl = buildAfipQrURL({
-        fecha: iso,                 // "YYYY-MM-DD"
-        cuit: Number(cuitEmisor),
-        ptoVta: activePv,
-        tipoCmp: cbteTipo,
-        nroCmp,
-        importe: total,
-        moneda: MONEDA,             // "PES" => ctz=1
-        ctz: 1,
-        tipoDocRec: DocTipo,        // 80 (CUIT) o 99 (CF)
-        nroDocRec: DocNro,          // 0 si DocTipo=99
-        tipoCodAut: "E",            // CAE
-        codAut: cae,                // "75381797088071" por ej.
-      });
-
-      // 9) Guardar factura en base de datos
-      const cbtePtoVtaStr = String(activePv).padStart(4, "0");
-      const cbteNumeroStr = String(nroCmp).padStart(8, "0");
-      const isFacturaA = [1, 2, 3, 201, 203, 204].includes(cbteTipo); // ajustá si hace falta
-
-      const savePayload: SaveInvoicePayload = {
-        emitterCuit: auth.cuitEmisor,
-        ptoVta: activePv,
-        customerId: selectedCustomer.id,
-
-        cbteTipo,
-        cbteNumero: Number(nroCmp),
-        cbtePtoVtaStr,
-        cbteNumeroStr,
-        cae,
-        caeVto,
-        fechaEmisionIso: iso,
-        qrUrl,
-        numberStr,
-
-        impNeto: Number(neto.toFixed(2)),
-        impIva: Number(iva.toFixed(2)),
-        impTotal: Number(total.toFixed(2)),
-        impTotConc: 0,
-        impOpEx: 0,
-        impTrib: 0,
-        ivaItems,     // el mismo array que mandaste a AFIP
-
-        items: lines, // tus ítems calculados por computePerItemTax
-
-        customerName: selectedCustomer.name,
-        customerTaxId: selectedCustomer.taxId,
-        customerAddress: selectedCustomer.address,
-        customerEmail: selectedCustomer.email ?? "",
-        customerIvaCond: receptorCond ?? "",
-
-        isFacturaA,
-      };
-
-      try {
-        await saveInvoice(savePayload);
-      } catch (e) {
-        // No detengas el flujo de facturación si falla el guardado,
-        // pero logueá/avisá para revisar.
-        console.warn("Historial: no se pudo guardar la factura:", e);
-      }
-      // 10) Armar payload completo para el PDF
+      // 2. Obtener datos del emisor (igual que en el orchestrator)
       const dataPtventa = account?.puntosVenta?.find(ptvta => ptvta.id === activePv);
-      const tpl = invoiceTemplatesByPv?.[activePv];
+      const tpl = invoiceTemplatesByPv?.[activePv!];
       const seller = {
         companyName: account?.companyname || '-----',
         fantasyName: dataPtventa?.fantasia || account?.companyname || '-----',
@@ -311,57 +186,60 @@ export function InvoiceForm() {
         logoDataUrl: tpl?.logoUrl || ""
       };
 
-      const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-        errorCorrectionLevel: "M",
-        margin: 0,
-        scale: 6,          // nitidez en impresión
-      });
+      const cuitEmisor = auth?.cuitEmisor || "";
 
+      // 3. Construir el payload del PDF
       const pdfPayload = {
         seller,
         header: {
-          number: numberStr,
+          // --- Campos Personalizados para Presupuesto ---
+          documentTitle: "PRESUPUESTO", // <-- ¡IMPORTANTE!
+          number: "S/N", // Sin número oficial
           date: iso.split('-').reverse().join('/'),
-          cae,
-          caeVto,
-          qrUrl: qrDataUrl,
-          cuit: auth.cuitEmisor.replace(/^(\d{2})(\d{8})(\d{1})$/, '$1-$2-$3'),
+          cae: '---',
+          caeVto: '---',
+          qrUrl: '', // Sin QR
+
+          // --- Campos Estándar ---
+          cuit: cuitEmisor.replace(/^(\d{2})(\d{8})(\d{1})$/, '$1-$2-$3'),
           ingresosBrutos: account?.iibb || "---",
-          inicioActividades: account?.startactivity || "",//(account?.inicioActividades ?? '').split('-').reverse().join('/') || '—',
-          cbteTipo,
+          inicioActividades: account?.startactivity || "",
+          cbteTipo: cbteTipo, // Pasamos el tipo para que el PDF sepa si mostrar columnas de IVA
         },
         customer: {
-          name: selectedCustomer.name,
-          domicilio: selectedCustomer.address,
-          condIVA: receptorCond ?? '—',
-          condVenta: 'Contado',
-          cuit: selectedCustomer.taxId,
+          name: selectedCustomer!.name,
+          domicilio: selectedCustomer!.address,
+          condIVA: selectedCustomer!.ivaCondition ?? '—',
+          condVenta: 'Contado', // O 'A convenir'
+          cuit: selectedCustomer!.taxId,
           localidad: '-',
           provincia: '-',
-          telefono: selectedCustomer.email ?? '-',
+          telefono: selectedCustomer!.email ?? '-',
         },
-        items: lines, // ← usa lo calculado por-item
-        footerHtml: '<p></p>',
+        items: lines, // Usamos los items con impuestos calculados
+        footerHtml: `<p style="font-size: 10px; text-align: center;">Presupuesto válido por 15 días. Este documento no es una factura válida.</p>`,
       };
 
-      // 11) Generar y descargar PDF (IMPERATIVO)
+      // 4. Generar y descargar el PDF
       const blob = await generateInvoicePdf(pdfPayload, {
         currency: "ARS",
         rowsPerFirstPage: 12,
         rowsPerPage: 22,
         showCustomerOnAllPages: false,
       });
-      downloadBlob(blob, `Factura-${numberStr}.pdf`);
-      setIsLoading(false);
-      resetInvoiceState()
+
+      downloadBlob(blob, `Presupuesto-${selectedCustomer!.name.replace(/\s/g, '_')}.pdf`);
+
       toast({
-        title: '¡Éxito!',
-        description: 'Factura creada correctamente.',
+        title: 'Presupuesto Generado',
+        description: 'La descarga comenzará en breve.',
       });
-    } catch (e: any) {
-      setIsLoading(false);
-      console.error("FECAESolicitar error:", e);
-      alert(`Error al facturar: ${String(e?.message ?? e)}`);
+
+    } catch (err: any) {
+      console.error("Error generating quote:", err);
+      toast({ title: "Error", description: `No se pudo generar el presupuesto: ${err.message}`, variant: "destructive" });
+    } finally {
+      setIsQuoteLoading(false);
     }
   };
 
@@ -373,7 +251,6 @@ export function InvoiceForm() {
           <ActivePointAlert />
         </CardHeader>
         <CardContent>
-
           <CustomerPicker
             ref={customerPickerRef}
             value={selectedCustomer}
@@ -385,26 +262,46 @@ export function InvoiceForm() {
 
           <Separator className="my-6" />
           <Alert className="bg-red-100 border-red-200 mb-4">
-            <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-secondary-foreground">
-              <span className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-secondary-foreground" />
-                Tipo de Documento: <strong>{selectedDocumentType.name}</strong>
-              </span>
-              <Select
-                value={selectedDocumentType.id}
-                onValueChange={handleDocumentTypeChange}
-              >
-                <SelectTrigger className="w-full sm:w-[200px] bg-background">
-                  <SelectValue placeholder="Cambiar tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map((doc) => (
-                    <SelectItem key={doc.id} value={doc.id}>
-                      {doc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <AlertDescription className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 text-secondary-foreground">
+              {/* Grupo 1: Tipo de Documento */}
+              <div className="flex flex-col">
+                <span className="flex items-center gap-2 whitespace-nowrap mb-2">
+                  <FileText className="h-5 w-5 text-secondary-foreground" />
+                  Tipo de Documento: <strong>{selectedDocumentType.name}</strong>
+                </span>
+                <Select
+                  value={selectedDocumentType.id}
+                  onValueChange={handleDocumentTypeChange}
+                >
+                  <SelectTrigger className="w-full sm:w-[200px] bg-background">
+                    <SelectValue placeholder="Cambiar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentTypes.map((doc) => (
+                      <SelectItem key={doc.id} value={doc.id}>
+                        {doc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Grupo 2: Fecha de Facturación */}
+              <div className="flex flex-col">
+                <Label htmlFor="invoice-date" className="flex items-center gap-2 whitespace-nowrap mb-2">
+                  <Calendar className="h-5 w-5 text-secondary-foreground" />
+                  Fecha de Facturación
+                </Label>
+
+                <Input
+                  id="invoice-date"
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="w-full sm:w-[200px]"
+                  max={new Date().toISOString().split("T")[0]} // no permitir fecha futura
+                />
+              </div>
             </AlertDescription>
           </Alert>
           {isFacturaA && (
@@ -416,14 +313,23 @@ export function InvoiceForm() {
             </Alert>
           )}
           {isCreditNote && (
-            <div className="space-y-2 mb-4">
-              <Label htmlFor="associated-invoice">Nro de comprobante asociado</Label>
+            <div className="space-y-2 mb-4 p-4 border-l-4 border-yellow-400 bg-yellow-50 rounded-md">
+              <Label htmlFor="associated-invoice" className="font-semibold text-yellow-800">
+                N° de comprobante asociado (obligatorio)
+              </Label>
               <Input
                 id="associated-invoice"
                 value={associatedInvoice}
                 onChange={(e) => setAssociatedInvoice(e.target.value)}
-                placeholder="Ej: 0001-00012345"
+                placeholder="Ej: 12345 (sólo el número)"
+                className="bg-white"
               />
+              {/* NUEVO: Feedback visual si el campo está vacío */}
+              {!associatedInvoice.trim() && (
+                <p className="text-xs text-red-600 font-medium">
+                  Para una Nota de Crédito, debe ingresar el comprobante asociado.
+                </p>
+              )}
             </div>
           )}
           <div>
@@ -532,9 +438,17 @@ export function InvoiceForm() {
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
           <Button
+            variant="outline" // Estilo secundario
+            disabled={isQuoteDisabled}
+            onClick={handlePrintQuote}
+          >
+            {isQuoteLoading ? "Imprimiendo..." : "Imprimir Presupuesto"}
+            <Printer className="ml-2 h-4 w-4" />
+          </Button>
+          <Button
             variant="default"
-            disabled={!selectedCustomer || invoiceItems.length === 0 || isloading}
-            onClick={handleInvoice}
+            disabled={isSubmitDisabled}
+            onClick={handleFormSubmit}
           >
             {isloading ? "Facturando" : "Facturar"}
             <Send className="ml-2 h-4 w-4" />

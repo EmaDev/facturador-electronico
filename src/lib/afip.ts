@@ -43,12 +43,29 @@ export function buildAfipQrURL(params: {
   return `https://www.afip.gob.ar/fe/qr/?p=${p}`;
 }
 
-export function todayAfip() {
-  const d = new Date();
+/**
+ * Convierte una fecha al formato requerido por AFIP:
+ * - yyyymmdd: "20251004"
+ * - iso: "2025-10-04"
+ *
+ * Si no se pasa una fecha, usa la actual.
+ */
+export function todayAfip(dateInput?: string | Date) {
+  const d = dateInput ? new Date(`${dateInput}T00:00:00`) : new Date();
+
+  // Aseguramos que sea una fecha válida
+  if (isNaN(d.getTime())) {
+    throw new Error("Fecha inválida en todayAfip()");
+  }
+
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  return { yyyymmdd: `${y}${m}${dd}`, iso: `${y}-${m}-${dd}` };
+
+  return {
+    yyyymmdd: `${y}${m}${dd}`,
+    iso: `${y}-${m}-${dd}`,
+  };
 }
 
 // Acceso tolerante en respuestas SOAP->JSON
@@ -106,7 +123,7 @@ export function normalizeAfipDate(input: unknown): string {
   return "";
 }
 
-type IvaCondition = "Responsable Inscripto" | "Monotributista" | "Exento" | "Consumidor Final";
+type IvaCondition = "Responsable Inscripto" | "Monotributista" | "Exento" | "Consumidor Final" | "Responsable Monotributo";
 export function resolveCbteTipo(emitter: IvaCondition, receiver?: IvaCondition): number {
   if (emitter === "Monotributista") return 11; // Factura C
   if (emitter === "Responsable Inscripto") {
@@ -118,46 +135,165 @@ export function resolveCbteTipo(emitter: IvaCondition, receiver?: IvaCondition):
 }
 
 // (Opcional) mapear Condición IVA a Id AFIP para tu campo CondicionIVAReceptorId
-export function mapCondIvaToId(cond?: IvaCondition): number {
+/*export function mapCondIvaToId(cond?: IvaCondition): number {
   switch (cond) {
     case "Responsable Inscripto": return 1;
     case "Exento": return 4;
     case "Consumidor Final": return 5;
     case "Monotributista": return 6;
+    case "Responsable Monotributo": return 6;
     default: return 5; // CF por defecto
   }
+}*/
+
+export const CONDICIONES_IVA = [
+  {
+    id: 1,
+    desc: "Responsable Inscripto",
+    clases: ["A", "M", "C"],
+  },
+  {
+    id: 6,
+    desc: "Monotributista",
+    clases: ["A", "M", "C"],
+  },
+  {
+    id: 6,
+    desc: "Responsable Monotributo",
+    clases: ["A", "M", "C"],
+  },
+  {
+    id: 13,
+    desc: "Monotributista Social",
+    clases: ["A", "M", "C"],
+  },
+  {
+    id: 16,
+    desc: "Monotributo Trabajador Independiente Promovido",
+    clases: ["A", "M", "C"],
+  },
+  {
+    id: 4,
+    desc: "IVA Sujeto Exento",
+    clases: ["B", "C"],
+  },
+  {
+    id: 7,
+    desc: "Sujeto No Categorizado",
+    clases: ["B", "C"],
+  },
+  {
+    id: 8,
+    desc: "Proveedor del Exterior",
+    clases: ["B", "C"],
+  },
+  {
+    id: 9,
+    desc: "Cliente del Exterior",
+    clases: ["B", "C"],
+  },
+  {
+    id: 10,
+    desc: "IVA Liberado - Ley N° 19.640",
+    clases: ["B", "C"],
+  },
+  {
+    id: 15,
+    desc: "IVA No Alcanzado",
+    clases: ["B", "C"],
+  },
+  {
+    id: 5,
+    desc: "Consumidor Final",
+    clases: ["C", "49"], // 49 = tique
+  },
+];
+
+export function mapCondIvaToId(cond?: string): number {
+  if (!cond) return 5; // Consumidor Final por defecto
+  const found = CONDICIONES_IVA.find(c =>
+    c.desc.toLowerCase() === cond.toLowerCase()
+  );
+  return found?.id ?? 5;
 }
 
 
-export function resolveCustomerDocTipo(customerTaxId: string): {
+/**
+ * Determina el tipo de documento AFIP (DocTipo) y su número
+ * a partir del identificador fiscal o documento del cliente.
+ *
+ * Referencia oficial ARCA/AFIP:
+ *  - 80 = CUIT
+ *  - 86 = CUIL
+ *  - 87 = CDI
+ *  - 96 = DNI
+ *  - 94 = Pasaporte
+ *  - 91 = CI Extranjera
+ *  - 99 = Otro / No informado
+ */
+export function resolveCustomerDocTipo(customerTaxId?: string): {
   DocTipo: number;
   DocNro: number;
 } {
   const onlyDigits = (s: string) => (s || "").replace(/[^\d]/g, "");
-  const taxId = onlyDigits(customerTaxId);
+  const taxId = onlyDigits(customerTaxId ?? "");
 
-  let DocTipo = 99; // Consumidor Final por defecto
+  let DocTipo = 99; // Default: "Doc. (otro)"
   let DocNro = 0;
 
-  if (taxId) {
-    if (taxId.length === 11) {
-      // Puede ser CUIT o CUIL
-      const prefix = taxId.slice(0, 2);
-      if (["20", "23", "24", "27"].includes(prefix)) {
-        DocTipo = 86; // CUIL
-      } else {
-        DocTipo = 80; // CUIT
-      }
-      DocNro = Number(taxId);
-    } else if (taxId.length === 8) {
-      DocTipo = 96; // DNI
-      DocNro = Number(taxId);
-    }
+  if (!taxId) {
+    // Sin identificación → Consumidor Final
+    return { DocTipo, DocNro };
   }
-  return {
-    DocTipo,
-    DocNro
-  };
+
+  // === CASOS ESPECIALES ===
+  // CUIT / CUIL / CDI → 11 dígitos
+  if (taxId.length === 11) {
+    const prefix = taxId.slice(0, 2);
+    switch (prefix) {
+      case "20":
+      case "23":
+      case "24":
+      case "27":
+        //DocTipo = 86; // CUIL
+        //break;
+      case "30":
+      case "33":
+      case "34":
+        DocTipo = 80; // CUIT
+        break;
+      default:
+        DocTipo = 87; // CDI u otro identificador de 11 dígitos
+        break;
+    }
+    DocNro = Number(taxId);
+  }
+
+  // DNI → 8 dígitos
+  else if (taxId.length === 8) {
+    DocTipo = 96; // DNI
+    DocNro = Number(taxId);
+  }
+
+  // Pasaporte → empieza con "P" o mezcla de letras y números
+  else if (/^P/i.test(customerTaxId || "")) {
+    DocTipo = 94; // Pasaporte
+    DocNro = 0;   // AFIP no exige número válido para pasaporte
+  }
+
+  // CI Extranjera → puede venir con prefijo tipo "E" o "EX"
+  else if (/^E[X]?[0-9]*/i.test(customerTaxId || "")) {
+    DocTipo = 91; // Cédula extranjera
+    DocNro = 0;
+  }
+
+  // Si llega otro valor (por ejemplo "S/N" o no numérico)
+  else {
+    DocTipo = 99; // Otro documento
+    DocNro = 0;
+  }
+
+  return { DocTipo, DocNro };
 }
 
 export function mapFacturaToCbteAsocTipo(facturaTipo: number): number {

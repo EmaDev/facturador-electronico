@@ -7,26 +7,12 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 
 export function Navbar() {
-  const pathname = usePathname();
   const router = useRouter();
 
   const handleTabChange = (value: string) => {
     router.push(value);
   };
   
-  const getCurrentTab = () => {
-    if (pathname.startsWith('/dashboard/crm')) {
-      return '/crm';
-    }
-    if (pathname.startsWith('/dashboard/template-editor')) {
-      return '/template-editor';
-    }
-    if (pathname.startsWith('/dashboard/configuracion')) {
-        return '/configuracion';
-    }
-    return '/dashboard/factura';
-  }
-
   const handleLogout = () => {
     sessionStorage.removeItem('authToken');
     router.push('/login');
@@ -40,9 +26,10 @@ export function Navbar() {
                 <TabsTrigger value="/dashboard/crm">CRM</TabsTrigger>
                 <TabsTrigger value="/dashboard/template-editor">Editar Plantilla</TabsTrigger>
                 <TabsTrigger value="/dashboard/configuracion">Configuración</TabsTrigger>
+                 <TabsTrigger value="/dashboard/logs">Logs</TabsTrigger>
             </TabsList>
         </Tabs>
-        <Button variant="ghost" onClick={handleLogout}>
+        <Button variant="secondary" onClick={handleLogout} className='bg-[#e77d7d] text-white'>
             <LogOut className="mr-2"/>
             Cerrar Sesión
         </Button>

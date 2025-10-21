@@ -21,11 +21,19 @@ const schema = z.object({
   name: z.string().min(2, "El nombre es requerido"),
   email: z.union([
     z.string().trim().length(0),
-    z.string().trim().email("Email inválido"), 
+    z.string().trim().email("Email inválido"),
   ]),
   address: z.string().min(5, "La dirección es requerida"),
   taxId: z.string().min(1, "CUIT/CUIL requerido"),
-  ivaCondition: z.enum(["Responsable Inscripto", "Monotributista", "Exento", "Consumidor Final"], {
+  ivaCondition: z.enum([
+    "Responsable Inscripto",
+    "Responsable Monotributo",
+    "Monotributista",
+    "Monotributista Social",
+    "Monotributo Trabajador Independiente Promovido",
+    "Exento",
+    "Consumidor Final"
+  ], {
     required_error: "La condición de IVA es requerida"
   }),
 });
@@ -102,6 +110,11 @@ export default function NewCustomerDialog({ open, onOpenChange, presetName, onCr
                     <SelectItem value="Monotributista">Monotributista</SelectItem>
                     <SelectItem value="Exento">Exento</SelectItem>
                     <SelectItem value="Consumidor Final">Consumidor Final</SelectItem>
+                    <SelectItem value="Responsable Monotributo">Responsable Monotributo</SelectItem>
+                    <SelectItem value="Monotributista Social">Monotributista Social</SelectItem>
+                    <SelectItem value="Monotributo Trabajador Independiente Promovido">
+                      Monotributo Trabajador Independiente Promovido
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

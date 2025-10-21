@@ -22,4 +22,5 @@ export type IvaCondition =
   | "Responsable Inscripto"
   | "Monotributista"
   | "Exento"
-  | "Consumidor Final";
+  | "Consumidor Final"
+  | "Responsable Monotributo";

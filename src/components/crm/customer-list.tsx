@@ -11,7 +11,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Edit, Trash2, Eye, Search } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, FileText } from 'lucide-react';
 import type { Customer } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAccountStore } from '@/store/account';
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'El nombre es requerido'),
@@ -52,6 +53,7 @@ export function CustomerList() {
   const [searchByCuit, setSearchByCuit] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
+ const router = useRouter();
 
   // Traemos el CUIT del emisor desde el store (o podrías leer de sessionStorage si preferís)
   const auth = useAccountStore(s => s.auth);
@@ -176,13 +178,23 @@ export function CustomerList() {
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
 
+ 
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Clientes (CRM)</CardTitle>
-          <CardDescription>Busque, edite y gestione sus clientes.</CardDescription>
-        </CardHeader>
+        <div className='flex justify-between items-center w-full py-6 md:px-6 mb-6'>
+          <div>
+            <CardTitle>Gestión de Clientes (CRM)</CardTitle>
+            <CardDescription>Busque, edite y gestione sus clientes.</CardDescription>
+          </div>
+          <Button
+            type="button"
+            className="bg-accent hover:bg-accent/90 px-4"
+            onClick={() => router.push('/dashboard/libro-ventas')}
+          >
+            Descargar libro ventas <FileText className="h-5 w-5" />
+          </Button>
+        </div>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="relative flex-grow">

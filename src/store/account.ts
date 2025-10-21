@@ -18,7 +18,7 @@ type InvoiceTemplate = {
   updatedAt?: string | Date;
 };
 
-type AccountState = {
+export type AccountState = {
   account: Account | null;
   auth: AuthSession | null;
   loading: boolean;

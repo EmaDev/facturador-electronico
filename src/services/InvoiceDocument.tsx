@@ -23,6 +23,7 @@ type Header = {
   caeVto?: string;             // "dd/mm/aaaa"
   qrUrl?: string;              // URL del QR de AFIP
   cbteTipo: number;
+  documentTitle?: string
 };
 
 type Customer = {
@@ -245,16 +246,23 @@ const SellerHeader: React.FC<{ seller: Seller }> = ({ seller }) => (
 
 const InvoiceHeaderRight: React.FC<{ header: Header }> = ({ header }) => {
   const meta = cbteMeta(header.cbteTipo);
+  // 1. Verifica si es un presupuesto (si pasaste el título personalizado)
+  const isQuote = !!header.documentTitle;
+  // 2. Usa el título personalizado o, si no existe, el de AFIP (FACTURA, etc.)
+  const title = header.documentTitle || meta.title;
   return (
     <View style={[styles.border, styles.headerRight, styles.col, { justifyContent: "space-between" }]}>
       <View style={[styles.row]}>
-        <View style={{ width: 50, borderRightWidth: 1, borderColor: "#000", paddingRight: 6, marginRight: 6, alignItems: "center" }}>
-          <Text style={{ fontSize: 26, fontWeight: 700 }}>{meta.letter}</Text>
-          <Text style={[styles.small, { lineHeight: 1.2 }]}>CÓD. {meta.code}</Text>
-          <Text style={[styles.small, { lineHeight: 1.2 }]}>ORIGINAL</Text>
-        </View>
+        {/* 3. Oculta el recuadro de la letra (A, B, C) si es un presupuesto */}
+        {!isQuote && (
+          <View style={{ width: 50, borderRightWidth: 1, borderColor: "#000", paddingRight: 6, marginRight: 6, alignItems: "center" }}>
+            <Text style={{ fontSize: 26, fontWeight: 700 }}>{meta.letter}</Text>
+            <Text style={[styles.small, { lineHeight: 1.2 }]}>CÓD. {meta.code}</Text>
+            <Text style={[styles.small, { lineHeight: 1.2 }]}>ORIGINAL</Text>
+          </View>
+        )}
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: 700 }}>{meta.title}</Text>
+          <Text style={{ fontSize: 16, fontWeight: 700 }}>{title}</Text>
           <Text>{header.number}</Text>
           <Text style={[styles.bold, { marginTop: 4 }]}>Fecha de Emisión: {header.date}</Text>
         </View>
@@ -376,22 +384,38 @@ const TotalsBoxB: React.FC<{ items: Item[]; currency: string; otrosTributos?: nu
   );
 };
 
-const FooterBox: React.FC<{ header: Header; footerText?: string }> = ({ header, footerText }) => (
-  <View style={styles.footerBox}>
-    <View style={[styles.row, { alignItems: "center", gap: 8 }]}>
-      
-      {header.qrUrl ? <Image src={header.qrUrl} style={styles.qr} /> : null}
-      <View>
-        <Text style={styles.bold}>Comprobante Autorizado</Text>
-        {footerText ? <Text style={styles.small}>{footerText.replace(/<[^>]*>/g, "")}</Text> : null}
+const FooterBox: React.FC<{ header: Header; footerText?: string }> = ({ header, footerText }) => {
+  // 1. Determinamos si es un presupuesto usando la misma lógica que en el header
+  const isQuote = !!header.documentTitle;
+
+  return (
+    <View style={styles.footerBox}>
+      <View style={[styles.row, { alignItems: "center", gap: 8 }]}>
+        
+        {/* 2. Ocultamos el QR si es un presupuesto */}
+        {!isQuote && header.qrUrl ? <Image src={header.qrUrl} style={styles.qr} /> : null}
+
+        <View>
+          {/* 3. Ocultamos "Comprobante Autorizado" si es un presupuesto */}
+          {!isQuote && (
+            <Text style={styles.bold}>Comprobante Autorizado</Text>
+          )}
+
+          {/* 4. Mostramos el footerText (que para el presupuesto será "Válido por 15 días...") */}
+          {footerText ? <Text style={styles.small}>{footerText.replace(/<[^>]*>/g, "")}</Text> : null}
+        </View>
       </View>
+
+      {/* 5. Ocultamos TODO el bloque de CAE si es un presupuesto */}
+      {!isQuote && (
+        <View>
+          <Text><Text style={styles.bold}>CAE N°: </Text>{header.cae ?? "-"}</Text>
+          <Text><Text style={styles.bold}>Venc. CAE: </Text>{header.caeVto ?? "-"}</Text>
+        </View>
+      )}
     </View>
-    <View>
-      <Text><Text style={styles.bold}>CAE N°: </Text>{header.cae ?? "-"}</Text>
-      <Text><Text style={styles.bold}>Venc. CAE: </Text>{header.caeVto ?? "-"}</Text>
-    </View>
-  </View>
-);
+  );
+};
 
 /** ===================== Documento principal ===================== */
 const InvoiceDocument: React.FC<Props> = ({ payload, opts }) => {

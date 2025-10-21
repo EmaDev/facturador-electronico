@@ -11,7 +11,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
     "@genkit-ai/next": "^1.14.1",
@@ -57,6 +59,7 @@
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.2",
     "zustand": "^5.0.8"
   },

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,14 +10,26 @@ import { MessageSquare, Send, X, Bot, User, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { askChatbot, type ChatMessage } from '@/ai/flows/chatbot-flow';
 
+const MOCK_QUESTION = "Quiero obtener el total de facturacion del cliente con cuit 20425567669";
+const MOCK_ANSWER = "Excelente, te voy a pasar el total facturado del cliente Emanuel.\n\nEn el mes de Septiembre has realizado una facturación de $1.500.000 a este cliente.\nHas realizado 8 comprobantes de tipo Factura B.\n\n¿Quieres obtener información sobre un comprobante en particular?";
+
+const MOCK_MESSAGES: ChatMessage[] = [
+  { role: 'user', content: MOCK_QUESTION },
+  { role: 'model', content: MOCK_ANSWER },
+  { role: 'user', content: "Quiero que me descargues todas las facturas B, desde el lunes 29/09" },
+  { role: 'model', content: "Ok, voy a descargar las facturas solicitadas." }
+];
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', content: "¡Hola! Soy tu asistente de IA. ¿Cómo puedo ayudarte con tus facturas o clientes hoy?" }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+  if (isOpen && messages.length === 0) {
+    setMessages(MOCK_MESSAGES);
+  }
+}, [isOpen]);
   const handleSend = async () => {
     if (input.trim() === '') return;
 
@@ -27,7 +39,15 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
-      const response = await askChatbot([...messages, userMessage]);
+      let response: string;
+      if (input.trim() === MOCK_QUESTION) {
+        // Use the mock answer for the specific mock question
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+        response = MOCK_ANSWER;
+      } else {
+        // Call the actual AI flow for other questions
+        response = await askChatbot([...messages, userMessage]);
+      }
       setMessages(prev => [...prev, { role: 'model', content: response }]);
     } catch (error) {
       console.error('Error del chatbot:', error);
@@ -45,16 +65,16 @@ export function Chatbot() {
 
   return (
     <>
-      <AnimatePresence>
+       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-5 z-50 w-full max-w-sm"
+            className="fixed inset-0 z-50 md:bottom-24 md:right-5 md:inset-auto md:w-full md:max-w-lg"
           >
-            <Card className="flex flex-col h-[60vh] shadow-2xl">
+            <Card className="flex flex-col h-full md:h-[60vh] shadow-2xl rounded-none md:rounded-lg">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Bot /> Asistente de IA
@@ -66,10 +86,15 @@ export function Chatbot() {
               <CardContent className="flex-1 overflow-hidden p-0">
                 <ScrollArea className="h-full p-6">
                   <div className="space-y-4">
+                    {messages.length === 0 && (
+                        <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                            <p>¿Cómo puedo ayudarte hoy?</p>
+                        </div>
+                    )}
                     {messages.map((message, index) => (
                       <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
                         {message.role === 'model' && <Bot className="h-6 w-6 text-primary flex-shrink-0" />}
-                        <div className={`rounded-lg px-4 py-2 text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        <div className={`rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                           {message.content}
                         </div>
                         {message.role === 'user' && <User className="h-6 w-6 flex-shrink-0" />}
@@ -86,7 +111,7 @@ export function Chatbot() {
                   </div>
                 </ScrollArea>
               </CardContent>
-              <CardFooter className="p-4 border-t">
+              <CardFooter className="p-4 border-t pb-24">
                 <div className="flex w-full items-center space-x-2">
                   <Input
                     type="text"
@@ -108,7 +133,7 @@ export function Chatbot() {
       </AnimatePresence>
       <Button
         size="lg"
-        className="fixed bottom-5 right-5 rounded-full h-16 w-16 shadow-lg"
+        className="fixed bottom-5 right-5 rounded-full h-16 w-16 shadow-lg z-50 hidden md:flex"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}

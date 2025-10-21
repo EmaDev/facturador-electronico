@@ -146,7 +146,7 @@ export default function ConfiguracionPage() {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-6xl mx-auto">
       <CardHeader>
         <CardTitle>Configuración de Facturación</CardTitle>
         <CardDescription>Configure los datos de su empresa y puntos de venta.</CardDescription>
@@ -157,7 +157,7 @@ export default function ConfiguracionPage() {
         <div className="space-y-6">
           <h3 className="text-lg font-semibold text-primary">Datos Globales de la Empresa</h3>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label htmlFor="cuit">CUIT</Label>
               <Input
@@ -183,9 +183,8 @@ export default function ConfiguracionPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-2">
+            <div className="space-y-2">
             <Label htmlFor="main-address">Domicilio Fiscal Principal</Label>
             <Input
               id="main-address"
@@ -193,6 +192,8 @@ export default function ConfiguracionPage() {
               onChange={(e) => setMainAddress(e.target.value)}
               placeholder="e.g., Av. Corrientes 1234, CABA"
             />
+          </div>
+
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -215,10 +216,11 @@ export default function ConfiguracionPage() {
                 placeholder="e.g., contacto@empresa.com"
               />
             </div>
+            
           </div>
 
           {/* Cert/Key se muestran pero NO se envían en updateAccount */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {/*<div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="certificate-file">Certificado Digital (.crt)</Label>
@@ -270,7 +272,7 @@ export default function ConfiguracionPage() {
                 {privateKeyFile && <span className="text-sm text-muted-foreground">{privateKeyFile.name}</span>}
               </div>
             </div>
-          </div>
+          </div>*/}
         </div>
 
         <Separator />
