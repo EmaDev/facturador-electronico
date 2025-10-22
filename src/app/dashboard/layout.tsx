@@ -1,5 +1,6 @@
 "use client"
 
+import { Chatbot } from '@/components/chatbot/chatbot';
 import { Navbar } from '@/components/layout/navbar';
 //import { Chatbot } from '@/components/chatbot/chatbot';
 
@@ -40,6 +41,7 @@ export default function AppLayout({
         <Navbar />
       </header>
       <main>{children}</main>
+      <Chatbot/>
     </div>
   );
 }

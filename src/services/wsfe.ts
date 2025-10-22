@@ -37,7 +37,7 @@ export async function createLog(resp: any, body: any) {
     const list = Array.isArray(errors) ? errors : [errors];
 
     for (const err of list) {
-      await fetch(`${"http://localhost:3000"}/logs`, {
+      await fetch(`${NEST_API_URL}/logs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -64,7 +64,7 @@ export async function createLog(resp: any, body: any) {
     const obsMsg = det?.Observaciones?.Obs?.Msg || "La solicitud fue rechazada por ARCA pero no se informó un código de error específico.";
 
     // Genera el log con el mensaje de las observaciones.
-    await fetch(`${"http://localhost:3000"}/logs`, {
+    await fetch(`${NEST_API_URL}/logs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
